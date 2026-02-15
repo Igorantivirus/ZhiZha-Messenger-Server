@@ -43,11 +43,12 @@
 - `registration-timeout-seconds`: сколько секунд даётся на регистрацию.
 - `server-name`: имя сервера.
 
-### Registration result (без `type`)
+### `register-result`
 Сценарий: ответ на успешную регистрацию.
 
 ```json
 {
+  "type": "register-result",
   "registered": true,
   "user-id": 1,
   "server-public-key": "server-public-key-stub",
@@ -58,6 +59,7 @@
 ```
 
 Поля:
+- `type`: `"register-result"`.
 - `registered`: `true` если регистрация прошла.
 - `user-id`: числовой ID пользователя, который клиент обязан использовать дальше.
 - `server-public-key`: публичный ключ сервера (пока заглушка).
@@ -240,4 +242,3 @@
 
 - `chat-id = 1` существует всегда (публичная комната).
 - После успешной регистрации пользователь автоматически добавляется в `chat-id = 1`.
-

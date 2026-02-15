@@ -30,6 +30,7 @@ class JsonParser
 {
 public:
     [[nodiscard]] static std::optional<nlohmann::json> parseJson(const std::string& rawPayload);
+    [[nodiscard]] static std::optional<nlohmann::json> parseJson(const std::string_view rawPayload);
     [[nodiscard]] static std::optional<std::string> parseMessageType(const nlohmann::json& payload);
 
     // Client -> Server

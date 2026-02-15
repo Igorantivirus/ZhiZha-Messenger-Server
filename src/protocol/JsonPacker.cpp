@@ -62,6 +62,7 @@ std::string JsonPacker::packServerHello(const ServerHelloPayload& payload)
 std::string JsonPacker::packRegistration(const ServerRegistrationPayload& payload)
 {
     return json{
+        {"type", payload.type},
         {"registered", payload.registered},
         {"user-id", payload.userId},
         {"server-public-key", payload.serverPublicKey},

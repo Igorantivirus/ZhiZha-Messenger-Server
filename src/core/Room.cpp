@@ -1,4 +1,5 @@
 #include "core/Room.hpp"
+#include "Types.hpp"
 
 Room::Room(IDType roomId, Type type) : roomId_(roomId), type_(type)
 {

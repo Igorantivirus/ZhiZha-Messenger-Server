@@ -9,6 +9,15 @@ std::optional<nlohmann::json> JsonParser::parseJson(const std::string& rawPayloa
     }
     return payload;
 }
+std::optional<nlohmann::json> JsonParser::parseJson(const std::string_view rawPayload)
+{
+    auto payload = nlohmann::json::parse(rawPayload, nullptr, false);
+    if (payload.is_discarded() || !payload.is_object())
+    {
+        return std::nullopt;
+    }
+    return payload;
+}
 
 std::optional<std::string> JsonParser::parseMessageType(const nlohmann::json& payload)
 {
@@ -100,18 +109,20 @@ std::optional<ServerHelloPayload> JsonParser::parseServerHelloPayload(const nloh
 
 std::optional<ServerRegistrationPayload> JsonParser::parseServerRegistrationPayload(const nlohmann::json& payload)
 {
+    const auto type = getJsonField<std::string>(payload, "type");
     const auto registered = getJsonField<bool>(payload, "registered");
     const auto userId = getJsonField<IDType>(payload, "user-id");
     const auto serverPublicKey = getJsonField<std::string>(payload, "server-public-key");
     const auto usersChats = getJsonField<std::vector<IDType>>(payload, "users-chats");
     const auto serverName = getJsonField<std::string>(payload, "server-name");
-    if (!registered.has_value() || !userId.has_value() || !serverPublicKey.has_value() || !usersChats.has_value() ||
-        !serverName.has_value())
+    if (!type.has_value() || *type != "register-result" || !registered.has_value() || !userId.has_value() ||
+        !serverPublicKey.has_value() || !usersChats.has_value() || !serverName.has_value())
     {
         return std::nullopt;
     }
 
     ServerRegistrationPayload result{};
+    result.type = *type;
     result.registered = *registered;
     result.userId = *userId;
     result.serverPublicKey = *serverPublicKey;
