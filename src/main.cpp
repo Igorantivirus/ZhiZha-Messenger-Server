@@ -3,9 +3,6 @@
 
 #include "ChatServer.hpp"
 
-#include <boost/beast.hpp>
-#include <boost/asio.hpp>
-
 int main()
 {
 #if _WIN32

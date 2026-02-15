@@ -4,6 +4,50 @@
 
 using json = nlohmann::json;
 
+std::string JsonPacker::packRegisterRequest(const ClientRegisterRequest& payload)
+{
+    return json{
+        {"type", payload.type},
+        {"public-key", payload.publicKey},
+        {"username", payload.username},
+        {"client-version", payload.clientVersion},
+    }
+        .dump();
+}
+
+std::string JsonPacker::packChatMessageRequest(const ClientChatMessageRequest& payload)
+{
+    return json{
+        {"type", payload.type},
+        {"user-id", payload.userId},
+        {"chat-id", payload.chatId},
+        {"message", payload.message},
+        {"client-message-id", payload.clientMessageId},
+    }
+        .dump();
+}
+
+std::string JsonPacker::packCreateRoomRequest(const ClientCreateRoomRequest& payload)
+{
+    return json{
+        {"type", payload.type},
+        {"user-id", payload.userId},
+        {"participant-user-ids", payload.participantUserIds},
+        {"is-private", payload.isPrivate},
+    }
+        .dump();
+}
+
+std::string JsonPacker::packLeaveRoomRequest(const ClientLeaveRoomRequest& payload)
+{
+    return json{
+        {"type", payload.type},
+        {"user-id", payload.userId},
+        {"chat-id", payload.chatId},
+    }
+        .dump();
+}
+
 std::string JsonPacker::packServerHello(const ServerHelloPayload& payload)
 {
     return json{
@@ -80,4 +124,3 @@ std::string JsonPacker::packServerInfo(bool alive, const std::string& serverName
     }
         .dump();
 }
-

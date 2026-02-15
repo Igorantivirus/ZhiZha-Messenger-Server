@@ -32,9 +32,24 @@ public:
     [[nodiscard]] static std::optional<nlohmann::json> parseJson(const std::string& rawPayload);
     [[nodiscard]] static std::optional<std::string> parseMessageType(const nlohmann::json& payload);
 
+    // Client -> Server
     [[nodiscard]] static std::optional<ClientRegisterRequest> parseRegisterRequest(const nlohmann::json& payload);
     [[nodiscard]] static std::optional<ClientChatMessageRequest> parseChatMessageRequest(const nlohmann::json& payload);
     [[nodiscard]] static std::optional<ClientCreateRoomRequest> parseCreateRoomRequest(const nlohmann::json& payload);
     [[nodiscard]] static std::optional<ClientLeaveRoomRequest> parseLeaveRoomRequest(const nlohmann::json& payload);
-};
 
+    // Server -> Client
+    [[nodiscard]] static std::optional<ServerHelloPayload> parseServerHelloPayload(const nlohmann::json& payload);
+    [[nodiscard]] static std::optional<ServerRegistrationPayload> parseServerRegistrationPayload(
+        const nlohmann::json& payload);
+    [[nodiscard]] static std::optional<ServerErrorPayload> parseServerErrorPayload(const nlohmann::json& payload);
+    [[nodiscard]] static std::optional<ServerChatMessagePayload> parseServerChatMessagePayload(
+        const nlohmann::json& payload);
+    [[nodiscard]] static std::optional<ServerRoomCreatedPayload> parseServerRoomCreatedPayload(
+        const nlohmann::json& payload);
+    [[nodiscard]] static std::optional<ServerRoomLeftPayload> parseServerRoomLeftPayload(const nlohmann::json& payload);
+
+    // HTTP responses
+    [[nodiscard]] static std::optional<bool> parseServerAlive(const nlohmann::json& payload);
+    [[nodiscard]] static std::optional<std::string> parseServerName(const nlohmann::json& payload);
+};
