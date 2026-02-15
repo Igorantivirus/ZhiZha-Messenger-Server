@@ -1,0 +1,6 @@
+/.clang-format
+/.clangd
+/.vscode
+/build
+/CMakePresets.json
+/cwd
