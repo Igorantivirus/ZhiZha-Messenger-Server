@@ -19,5 +19,5 @@ struct UserContext
     std::string publicKey;
     std::set<IDType> roomIds;
     std::atomic_bool authorized = false;
+    std::atomic_bool closing = false;
 };
-

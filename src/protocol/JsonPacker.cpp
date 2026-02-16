@@ -61,7 +61,8 @@ std::string JsonPacker::packServerHello(const ServerHelloPayload& payload)
 
 std::string JsonPacker::packRegistration(const ServerRegistrationPayload& payload)
 {
-    return json{
+    json res = json
+    {
         {"type", payload.type},
         {"registered", payload.registered},
         {"user-id", payload.userId},
@@ -69,8 +70,9 @@ std::string JsonPacker::packRegistration(const ServerRegistrationPayload& payloa
         {"users-chats", payload.usersChats},
         {"server-name", payload.serverName},
         {"protocol-version", payload.protocolVersion},
-    }
-        .dump();
+    };
+
+    return res.dump();
 }
 
 std::string JsonPacker::packError(const ServerErrorPayload& payload)
@@ -88,6 +90,7 @@ std::string JsonPacker::packChatMessage(const ServerChatMessagePayload& payload)
     return json{
         {"type", payload.type},
         {"user-id", payload.userId},
+        {"username", payload.userName},
         {"chat-id", payload.chatId},
         {"message", payload.message},
         {"server-message-id", payload.serverMessageId},

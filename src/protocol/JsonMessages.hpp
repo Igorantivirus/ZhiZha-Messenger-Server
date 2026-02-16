@@ -76,6 +76,7 @@ struct ServerChatMessagePayload
 {
     std::string type = "chat-msg";       // Тип сообщения: "chat-msg".
     IDType userId = 0;                   // ID пользователя-отправителя.
+    std::string userName;                // Имя пользователя
     IDType chatId = 0;                   // ID комнаты, в которую отправлено сообщение.
     std::string message;                 // Текст сообщения.
     std::uint64_t serverMessageId = 0;   // Монотонно возрастающий ID сообщения на стороне сервера.

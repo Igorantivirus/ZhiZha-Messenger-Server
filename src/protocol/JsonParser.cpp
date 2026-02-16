@@ -152,17 +152,19 @@ std::optional<ServerChatMessagePayload> JsonParser::parseServerChatMessagePayloa
 {
     const auto type = getJsonField<std::string>(payload, "type");
     const auto userId = getJsonField<IDType>(payload, "user-id");
+    const auto userName = getJsonField<std::string>(payload, "username");
     const auto chatId = getJsonField<IDType>(payload, "chat-id");
     const auto message = getJsonField<std::string>(payload, "message");
     const auto serverMessageId = getJsonField<std::uint64_t>(payload, "server-message-id");
     if (!type.has_value() || *type != "chat-msg" || !userId.has_value() || !chatId.has_value() || !message.has_value() ||
-        !serverMessageId.has_value())
+        !serverMessageId.has_value() || !userName.has_value())
     {
         return std::nullopt;
     }
 
     ServerChatMessagePayload result{};
     result.userId = *userId;
+    result.userName = *userName;
     result.chatId = *chatId;
     result.message = *message;
     result.serverMessageId = *serverMessageId;

@@ -12,6 +12,7 @@ set(CPP_FILES
     src/core/Room.cpp
     src/protocol/JsonPacker.cpp
     src/protocol/JsonParser.cpp
+    src/core/KeyGenerator.cpp
 )
 
 set(HPP_FILES

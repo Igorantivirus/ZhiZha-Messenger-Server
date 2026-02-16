@@ -46,6 +46,7 @@ std::string ChatServer::infoServer() const
 
 void ChatServer::onWebSocketOpen(crow::websocket::connection& conn)
 {
+    CROW_LOG_INFO << "onWebSocketOpen(" << &conn << ")\n";
     auto user = std::make_shared<UserContext>();
     user->connection = &conn;
     user->connectionTime = std::chrono::steady_clock::now();
@@ -69,99 +70,119 @@ void ChatServer::onWebSocketOpen(crow::websocket::connection& conn)
 
 void ChatServer::onWebSocketMessage(crow::websocket::connection& conn, const std::string& data, bool isBinary)
 {
-    if (isBinary)
+    CROW_LOG_INFO << "onWebSocketMessage(" << &conn << ", \""<< data << "\", " << isBinary << ")\n";
+    try
     {
-        conn.send_text(JsonPacker::packError({"error", "binary-not-supported", "Use JSON text messages only"}));
-        return;
-    }
-
-    const auto user = findUser(&conn);
-    if (user == nullptr)
-    {
-        conn.close("unknown connection", crow::websocket::CloseStatusCode::PolicyViolated);
-        return;
-    }
-
-    const auto jsonPayload = JsonParser::parseJson(data);
-    if (!jsonPayload.has_value())
-    {
-        conn.send_text(JsonPacker::packError({"error", "invalid-json", "Payload must be valid JSON object"}));
-        return;
-    }
-
-    const auto type = JsonParser::parseMessageType(*jsonPayload);
-    if (!type.has_value())
-    {
-        conn.send_text(JsonPacker::packError({"error", "invalid-json", "Field 'type' is required"}));
-        return;
-    }
-
-    if (*type == "register")
-    {
-        const auto request = JsonParser::parseRegisterRequest(*jsonPayload);
-        if (!request.has_value())
+        if (isBinary)
         {
-            conn.send_text(
-                JsonPacker::packError({"error", "public-key-required", "Field 'public-key' must be string"}));
+            conn.send_text(JsonPacker::packError({"error", "binary-not-supported", "Use JSON text messages only"}));
             return;
         }
 
-        handleRegistrationMessage(user, *request);
-        return;
-    }
-
-    if (!user->authorized.load())
-    {
-        conn.send_text(JsonPacker::packError({"error", "not-authorized", "Register first"}));
-        return;
-    }
-
-    if (*type == "chat-msg")
-    {
-        const auto request = JsonParser::parseChatMessageRequest(*jsonPayload);
-        if (!request.has_value())
+        const auto user = findUser(&conn);
+        if (user == nullptr)
         {
-            conn.send_text(
-                JsonPacker::packError({"error", "invalid-chat-payload", "user-id, chat-id and message are required"}));
+            conn.close("unknown connection", crow::websocket::CloseStatusCode::PolicyViolated);
             return;
         }
 
-        handleChatMessage(user, *request);
-        return;
-    }
-
-    if (*type == "create-room")
-    {
-        const auto request = JsonParser::parseCreateRoomRequest(*jsonPayload);
-        if (!request.has_value())
+        if (user->closing.load())
         {
-            conn.send_text(JsonPacker::packError(
-                {"error", "invalid-create-room-payload", "user-id and participant-user-ids are required"}));
+            conn.close("closing", crow::websocket::CloseStatusCode::EndpointGoingAway);
             return;
         }
 
-        handleCreateRoomRequest(user, *request);
-        return;
-    }
-
-    if (*type == "leave-room")
-    {
-        const auto request = JsonParser::parseLeaveRoomRequest(*jsonPayload);
-        if (!request.has_value())
+        const auto jsonPayload = JsonParser::parseJson(data);
+        if (!jsonPayload.has_value())
         {
-            conn.send_text(JsonPacker::packError({"error", "invalid-leave-room-payload", "user-id and chat-id are required"}));
+            conn.send_text(JsonPacker::packError({"error", "invalid-json", "Payload must be valid JSON object"}));
             return;
         }
 
-        handleLeaveRoomRequest(user, *request);
-        return;
-    }
+        const auto type = JsonParser::parseMessageType(*jsonPayload);
+        if (!type.has_value())
+        {
+            conn.send_text(JsonPacker::packError({"error", "invalid-json", "Field 'type' is required"}));
+            return;
+        }
 
-    conn.send_text(JsonPacker::packError({"error", "unknown-message-type", "Unsupported message type"}));
+        if (*type == "register")
+        {
+            const auto request = JsonParser::parseRegisterRequest(*jsonPayload);
+            if (!request.has_value())
+            {
+                conn.send_text(
+                    JsonPacker::packError({"error", "public-key-required", "Field 'public-key' must be string"}));
+                return;
+            }
+
+            handleRegistrationMessage(user, *request);
+            return;
+        }
+
+        if (!user->authorized.load())
+        {
+            conn.send_text(JsonPacker::packError({"error", "not-authorized", "Register first"}));
+            return;
+        }
+
+        if (*type == "chat-msg")
+        {
+            const auto request = JsonParser::parseChatMessageRequest(*jsonPayload);
+            if (!request.has_value())
+            {
+                conn.send_text(JsonPacker::packError(
+                    {"error", "invalid-chat-payload", "user-id, chat-id and message are required"}));
+                return;
+            }
+
+            handleChatMessage(user, *request);
+            return;
+        }
+
+        if (*type == "create-room")
+        {
+            const auto request = JsonParser::parseCreateRoomRequest(*jsonPayload);
+            if (!request.has_value())
+            {
+                conn.send_text(JsonPacker::packError(
+                    {"error", "invalid-create-room-payload", "user-id and participant-user-ids are required"}));
+                return;
+            }
+
+            handleCreateRoomRequest(user, *request);
+            return;
+        }
+
+        if (*type == "leave-room")
+        {
+            const auto request = JsonParser::parseLeaveRoomRequest(*jsonPayload);
+            if (!request.has_value())
+            {
+                conn.send_text(
+                    JsonPacker::packError({"error", "invalid-leave-room-payload", "user-id and chat-id are required"}));
+                return;
+            }
+
+            handleLeaveRoomRequest(user, *request);
+            return;
+        }
+
+        conn.send_text(JsonPacker::packError({"error", "unknown-message-type", "Unsupported message type"}));
+    }
+    catch (const std::bad_alloc&)
+    {
+        conn.close("out of memory", crow::websocket::CloseStatusCode::UnexpectedCondition);
+    }
+    catch (const std::exception&)
+    {
+        conn.close("internal error", crow::websocket::CloseStatusCode::UnexpectedCondition);
+    }
 }
 
 void ChatServer::onWebSocketClose(crow::websocket::connection& conn, const std::string&, uint16_t)
 {
+    CROW_LOG_INFO << "onWebSocketClose(" << &conn << ")\n";
     std::scoped_lock lock(stateMutex_);
     const auto clientIt = clients_.find(&conn);
     if (clientIt == clients_.end())
@@ -193,20 +214,26 @@ void ChatServer::onWebSocketClose(crow::websocket::connection& conn, const std::
 
 void ChatServer::handleRegistrationMessage(const UserContextPtr& user, const ClientRegisterRequest& request)
 {
-    if (user->authorized.load())
-    {
-        user->connection->send_text(JsonPacker::packError({"error", "already-registered", "Already registered"}));
-        return;
-    }
-
-    user->publicKey = request.publicKey;
-    user->username = request.username.empty() ? "user" : request.username;
-    user->userId = nextUserId_.fetch_add(1);
-    user->authorized.store(true);
-
     std::vector<IDType> usersChats;
+    ServerRegistrationPayload response{};
     {
         std::scoped_lock lock(stateMutex_);
+        if (user->closing.load())
+        {
+            return;
+        }
+
+        if (user->authorized.load())
+        {
+            user->connection->send_text(JsonPacker::packError({"error", "already-registered", "Already registered"}));
+            return;
+        }
+
+        user->publicKey = request.publicKey;
+        user->username = request.username.empty() ? "user" : request.username;
+        user->userId = nextUserId_.fetch_add(1);
+        user->authorized.store(true);
+
         usersById_[user->userId] = user;
 
         auto roomIt = rooms_.find(1);
@@ -220,14 +247,13 @@ void ChatServer::handleRegistrationMessage(const UserContextPtr& user, const Cli
         {
             usersChats.push_back(roomId);
         }
-    }
 
-    ServerRegistrationPayload response{};
-    response.registered = true;
-    response.userId = user->userId;
-    response.serverPublicKey = serverPublicKey_;
-    response.usersChats = std::move(usersChats);
-    response.serverName = serverName_;
+        response.registered = true;
+        response.userId = user->userId;
+        response.serverPublicKey = serverPublicKey_;
+        response.usersChats = std::move(usersChats);
+        response.serverName = serverName_;
+    }
 
     user->connection->send_text(JsonPacker::packRegistration(response));
 }
@@ -256,6 +282,7 @@ void ChatServer::handleChatMessage(const UserContextPtr& user, const ClientChatM
 
     ServerChatMessagePayload response{};
     response.userId = user->userId;
+    response.userName = user->username;
     response.chatId = request.chatId;
     response.message = request.message;
     response.serverMessageId = nextServerMessageId_.fetch_add(1);
@@ -361,6 +388,7 @@ void ChatServer::disconnectIfRegistrationTimedOut(crow::websocket::connection* c
             return;
         }
         user = it->second;
+        user->closing.store(true);
     }
 
     if (user != nullptr && user->connection != nullptr)
@@ -379,4 +407,3 @@ UserContextPtr ChatServer::findUser(crow::websocket::connection* connection)
     }
     return it->second;
 }
-

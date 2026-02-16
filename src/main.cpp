@@ -3,6 +3,8 @@
 
 #include "ChatServer.hpp"
 
+#include "Core/KeyGenerator.hpp"
+
 int main()
 {
 #if _WIN32
@@ -10,6 +12,7 @@ int main()
 #endif
 
     ChatServer server("Messenger2 Server", "server-public-key-stub", std::chrono::seconds(20));
+    std::cout << "Server key: " << KeyGenerator::generateKey("10.241.69.217", 18080) << '\n';
     server.run(18080);
 
     return 0;
