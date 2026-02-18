@@ -225,12 +225,43 @@ void ChatServer::handleRegistrationMessage(const UserContextPtr& user, const Cli
 
         if (user->authorized.load())
         {
-            user->connection->send_text(JsonPacker::packError({"error", "already-registered", "Already registered"}));
+            user->connection->send_text(JsonPacker::packError({"register-error", "already-registered", "Already registered"}));
+            return;
+        }
+        if(request.username.empty())
+        {
+            user->connection->send_text(JsonPacker::packError({"register-error", "empty-username", "Username is empty"}));
+            return;
+        }
+        if(request.password.empty())
+        {
+            user->connection->send_text(JsonPacker::packError({"register-error", "empty-password", "Password is empty"}));
+            return;
+        }
+
+        //Проверка, что нет пользователя с таким именем
+        for(const auto& [ID, userByID] : usersById_)
+        {
+            if(ID == user->userId)
+                continue;
+            if(!userByID->authorized)//Если пользователь не авторизован -- то тот, кто раньше занял имя, того и тапки
+                continue;
+            if(userByID->username == request.username)
+            {
+                user->connection->send_text(JsonPacker::packError({"register-error", "username-busy", "There is a user with that name"}));
+                return;
+            }
+        }
+
+        if(!user->password.empty() && user->password != request.password)
+        {
+            user->connection->send_text(JsonPacker::packError({"register-error", "wrong-password", "Invalid password"}));
             return;
         }
 
         user->publicKey = request.publicKey;
-        user->username = request.username.empty() ? "user" : request.username;
+        user->username = request.username;
+        user->password = request.password;
         user->userId = nextUserId_.fetch_add(1);
         user->authorized.store(true);
 
