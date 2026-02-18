@@ -1,0 +1,75 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "MSVC",
+      "displayName": "Ninja Multi-Config (MSVC)",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build",
+      "environment": {
+        "PATH": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.41.34120/bin/Hostx64/x64;C:/Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64;$penv{PATH}",
+        "INCLUDE": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.41.34120/include;C:/Program Files (x86)/Windows Kits/10/Include/10.0.22621.0/ucrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.22621.0/um;C:/Program Files (x86)/Windows Kits/10/Include/10.0.22621.0/shared;C:/Program Files (x86)/Windows Kits/10/Include/10.0.22621.0/winrt;C:/Program Files (x86)/Windows Kits/10/Include/10.0.22621.0/cppwinrt;$penv{INCLUDE}",
+        "LIB": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.41.34120/lib/x64;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.22621.0/ucrt/x64;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.22621.0/um/x64;$penv{LIB}"
+      },
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-windows",
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "CMAKE_CXX_FLAGS": "/std:c++latest /EHsc"
+      }
+    },
+    {
+      "name": "MinGW",
+      "displayName": "Ninja Multi-Config (MinGW)",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic",
+        "CMAKE_CXX_STANDARD": "23",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "MATHWORKER_BUILD_SHARED": "ON",
+        "CMAKE_CXX_FLAGS": "-std=gnu++23"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "MSVC-Debug",
+      "configurePreset": "MSVC",
+      "configuration": "Debug"
+    },
+    {
+      "name": "MSVC-Release",
+      "configurePreset": "MSVC",
+      "configuration": "Release"
+    },
+    {
+      "name": "MSVC-MinSizeRel",
+      "configurePreset": "MSVC",
+      "configuration": "MinSizeRel"
+    },
+    {
+      "name": "MinGW-Debug",
+      "configurePreset": "MinGW",
+      "configuration": "Debug"
+    },
+    {
+      "name": "MinGW-Release",
+      "configurePreset": "MinGW",
+      "configuration": "Release"
+    },
+    {
+      "name": "MinGW-MinSizeRel",
+      "configurePreset": "MinGW",
+      "configuration": "MinSizeRel"
+    }
+  ]
+}
