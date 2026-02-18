@@ -16,6 +16,7 @@ struct UserContext
 
     IDType userId = 0;
     std::string username;
+    std::string password;
     std::string publicKey;
     std::set<IDType> roomIds;
     std::atomic_bool authorized = false;
