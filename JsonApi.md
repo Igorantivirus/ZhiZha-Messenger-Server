@@ -170,6 +170,7 @@
   "type": "register",
   "public-key": "client-public-key-stub",
   "username": "alice",
+  "password": "1234",
   "client-version": "0.1.0"
 }
 ```
@@ -178,6 +179,7 @@
 - `type`: `"register"`.
 - `public-key`: строка с публичным ключом клиента (пока заглушка).
 - `username`: опционально, отображаемое имя.
+- `password`: пароль пользователя от сервера.
 - `client-version`: опционально, версия клиента.
 
 ### `chat-msg`
