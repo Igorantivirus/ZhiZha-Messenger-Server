@@ -214,7 +214,6 @@ void ChatServer::onWebSocketClose(crow::websocket::connection& conn, const std::
 
 void ChatServer::handleRegistrationMessage(const UserContextPtr& user, const ClientRegisterRequest& request)
 {
-    std::vector<IDType> usersChats;
     ServerRegistrationPayload response{};
     {
         std::scoped_lock lock(stateMutex_);
@@ -274,15 +273,9 @@ void ChatServer::handleRegistrationMessage(const UserContextPtr& user, const Cli
             user->roomIds.insert(1);
         }
 
-        for (const auto roomId : user->roomIds)
-        {
-            usersChats.push_back(roomId);
-        }
-
         response.registered = true;
         response.userId = user->userId;
         response.serverPublicKey = serverPublicKey_;
-        response.usersChats = std::move(usersChats);
         response.serverName = serverName_;
     }
 

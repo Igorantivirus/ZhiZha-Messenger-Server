@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <set>
 
 #include "core/Types.hpp"
 
@@ -55,13 +56,12 @@ struct ServerHelloPayload
 // Сервер -> Клиент: результат регистрации.
 struct ServerRegistrationPayload
 {
-    std::string type = "register-result"; // Message kind: "register-result".
-    bool registered = false;             // Статус регистрации: true = успешно, false = ошибка.
-    IDType userId = 0;                   // Присвоенный ID пользователя при успешной регистрации.
-    std::string serverPublicKey;         // Заглушка открытого ключа сервера.
-    std::vector<IDType> usersChats;      // ID комнат, в которых пользователь сейчас участвует.
-    std::string serverName;              // Человекочитаемое имя сервера.
-    std::string protocolVersion = "1.0"; // Версия протокола, сейчас "1.0".
+    std::string type = "register-result";                   // Message kind: "register-result".
+    bool registered = false;                                // Статус регистрации: true = успешно, false = ошибка.
+    IDType userId = 0;                                      // Присвоенный ID пользователя при успешной регистрации.
+    std::string serverPublicKey;                            // Заглушка открытого ключа сервера.
+    std::string serverName;                                 // Человекочитаемое имя сервера.
+    std::string protocolVersion = "1.0";                    // Версия протокола, сейчас "1.0".
 };
 
 // Сервер -> Клиент: общая ошибка для некорректных запросов.

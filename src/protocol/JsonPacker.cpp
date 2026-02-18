@@ -67,7 +67,6 @@ std::string JsonPacker::packRegistration(const ServerRegistrationPayload &payloa
         {"registered", payload.registered},
         {"user-id", payload.userId},
         {"server-public-key", payload.serverPublicKey},
-        {"users-chats", payload.usersChats},
         {"server-name", payload.serverName},
         {"protocol-version", payload.protocolVersion},
     };
