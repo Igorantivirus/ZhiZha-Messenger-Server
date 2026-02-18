@@ -10,6 +10,7 @@ public:
     // Client -> Server
     [[nodiscard]] static std::string packRegisterRequest(const ClientRegisterRequest& payload);
     [[nodiscard]] static std::string packChatMessageRequest(const ClientChatMessageRequest& payload);
+    [[nodiscard]] static std::string packDataRequest(const ClientDataRequest& payload);
     [[nodiscard]] static std::string packCreateRoomRequest(const ClientCreateRoomRequest& payload);
     [[nodiscard]] static std::string packLeaveRoomRequest(const ClientLeaveRoomRequest& payload);
 
@@ -20,6 +21,7 @@ public:
     [[nodiscard]] static std::string packChatMessage(const ServerChatMessagePayload& payload);
     [[nodiscard]] static std::string packRoomCreated(const ServerRoomCreatedPayload& payload);
     [[nodiscard]] static std::string packRoomLeft(const ServerRoomLeftPayload& payload);
+    [[nodiscard]] static std::string packRequestChatsPayload(const ServerChatsRequestPayload& payload);
 
     // HTTP responses
     [[nodiscard]] static std::string packServerInfo(bool alive, const std::string& serverName);

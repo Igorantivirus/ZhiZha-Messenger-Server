@@ -28,6 +28,16 @@ std::string JsonPacker::packChatMessageRequest(const ClientChatMessageRequest &p
         .dump();
 }
 
+std::string JsonPacker::packDataRequest(const ClientDataRequest &payload)
+{
+    return json{
+        {"type", payload.type},
+        {"data-type", payload.dataType},
+        {"user-id", payload.userId},
+    }
+        .dump();
+}
+
 std::string JsonPacker::packCreateRoomRequest(const ClientCreateRoomRequest &payload)
 {
     return json{
@@ -124,6 +134,22 @@ std::string JsonPacker::packServerInfo(bool alive, const std::string &serverName
     return json{
         {"alive", alive},
         {"server-name", serverName},
+    }
+        .dump();
+}
+
+std::string JsonPacker::packRequestChatsPayload(const ServerChatsRequestPayload &payload)
+{
+    json chatsJson = json::object();
+    for (const auto &[chatId, chatName] : payload.chats)
+    {
+        // JSON object keys are strings by definition.
+        chatsJson[std::to_string(chatId)] = chatName;
+    }
+
+    return json{
+        {"type", payload.type},
+        {"chats", std::move(chatsJson)},
     }
         .dump();
 }

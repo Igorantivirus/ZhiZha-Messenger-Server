@@ -52,7 +52,6 @@
   "registered": true,
   "user-id": 1,
   "server-public-key": "server-public-key-stub",
-  "users-chats": [1],
   "server-name": "Messenger2 Server",
   "protocol-version": "1.0"
 }
@@ -63,9 +62,26 @@
 - `registered`: `true` если регистрация прошла.
 - `user-id`: числовой ID пользователя, который клиент обязан использовать дальше.
 - `server-public-key`: публичный ключ сервера (пока заглушка).
-- `users-chats`: список ID комнат (чатов), где пользователь состоит.
 - `server-name`: имя сервера.
 - `protocol-version`: версия протокола.
+
+### `request-payload`
+Сценарий: ответ сервера с данными по запросу `data-request` (например, список чатов).
+
+```json
+{
+  "type": "request-payload",
+  "chats": {
+    "1": "General",
+    "2": "Private room"
+  }
+}
+```
+
+Поля:
+- `type`: `"request-payload"`.
+- `chats`: объект вида `{ "<chat-id>": "<chat-name>" }`.
+  - Важно: ключи JSON-объекта по стандарту JSON являются строками, поэтому `chat-id` представлен строковым ключом.
 
 ### `chat-msg` (broadcast)
 Сценарий: сервер рассылает сообщение всем участникам комнаты.
@@ -239,6 +255,22 @@
 - `type`: `"leave-room"`.
 - `user-id`: ваш ID из ответа регистрации.
 - `chat-id`: ID комнаты, из которой хотите выйти.
+
+### `data-request`
+Сценарий: запрос клиентом данных у сервера (например, список чатов).
+
+```json
+{
+  "type": "data-request",
+  "data-type": "chats-labels",
+  "user-id": 1
+}
+```
+
+Поля:
+- `type`: `"data-request"`.
+- `data-type`: тип запрашиваемых данных. Примеры: `"chats-labels"`, `"messages"`.
+- `user-id`: ваш ID из ответа регистрации.
 
 ## Комнаты по умолчанию
 

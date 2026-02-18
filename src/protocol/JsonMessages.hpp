@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include <set>
+#include <map>
 
 #include "core/Types.hpp"
 
@@ -25,6 +25,14 @@ struct ClientChatMessageRequest
     IDType chatId = 0;                  // ID целевой комнаты.
     std::string message;                // Текст сообщения; пока может быть пустым.
     std::uint64_t clientMessageId = 0;  // Опциональный ID сообщения со стороны клиента; 0 означает, что не указан.
+};
+
+// Клиент -> Сервер: запрос на получение данных
+struct ClientDataRequest
+{
+    std::string type = "data-request";  // Тип сообщения: "chat-msg".
+    std::string dataType;               // Тип запрашиваемых данных ("chats-labels", "messanges")
+    IDType userId = 0;                  // ID отправителя, полученный после регистрации.
 };
 
 // Клиент -> Сервер: создание новой комнаты с выбранными пользователями.
@@ -99,4 +107,11 @@ struct ServerRoomLeftPayload
     bool left = false;                   // true, если пользователь покинул комнату.
     IDType userId = 0;                   // ID пользователя, покинувшего комнату.
     IDType chatId = 0;                   // ID комнаты.
+};
+
+// Сервер -> Клиент: отправка данных
+struct ServerChatsRequestPayload
+{
+    std::string type = "chats-payload";       // Тип сообщения: "request-payload".
+    std::map<IDType, std::string> chats;        // {chat-id: "chat-name"}
 };

@@ -36,6 +36,7 @@ public:
     // Client -> Server
     [[nodiscard]] static std::optional<ClientRegisterRequest> parseRegisterRequest(const nlohmann::json& payload);
     [[nodiscard]] static std::optional<ClientChatMessageRequest> parseChatMessageRequest(const nlohmann::json& payload);
+    [[nodiscard]] static std::optional<ClientDataRequest> parseDataRequest(const nlohmann::json& payload);
     [[nodiscard]] static std::optional<ClientCreateRoomRequest> parseCreateRoomRequest(const nlohmann::json& payload);
     [[nodiscard]] static std::optional<ClientLeaveRoomRequest> parseLeaveRoomRequest(const nlohmann::json& payload);
 
@@ -49,6 +50,7 @@ public:
     [[nodiscard]] static std::optional<ServerRoomCreatedPayload> parseServerRoomCreatedPayload(
         const nlohmann::json& payload);
     [[nodiscard]] static std::optional<ServerRoomLeftPayload> parseServerRoomLeftPayload(const nlohmann::json& payload);
+    [[nodiscard]] static std::optional<ServerChatsRequestPayload> parseServerChatsRequestPayload(const nlohmann::json& payload);
 
     // HTTP responses
     [[nodiscard]] static std::optional<bool> parseServerAlive(const nlohmann::json& payload);

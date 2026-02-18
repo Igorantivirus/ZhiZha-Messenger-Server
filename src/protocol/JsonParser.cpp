@@ -58,6 +58,22 @@ std::optional<ClientChatMessageRequest> JsonParser::parseChatMessageRequest(cons
     return request;
 }
 
+std::optional<ClientDataRequest> JsonParser::parseDataRequest(const nlohmann::json& payload)
+{
+    const auto userId = getJsonField<IDType>(payload, "user-id");
+    const auto dataType = getJsonField<std::string>(payload, "data-type").value_or(
+        getJsonField<std::string>(payload, "dataType").value_or(""));
+    if (!userId.has_value() || dataType.empty())
+    {
+        return std::nullopt;
+    }
+
+    ClientDataRequest request;
+    request.userId = *userId;
+    request.dataType = dataType;
+    return request;
+}
+
 std::optional<ClientCreateRoomRequest> JsonParser::parseCreateRoomRequest(const nlohmann::json& payload)
 {
     const auto userId = getJsonField<IDType>(payload, "user-id");
@@ -114,10 +130,9 @@ std::optional<ServerRegistrationPayload> JsonParser::parseServerRegistrationPayl
     const auto registered = getJsonField<bool>(payload, "registered");
     const auto userId = getJsonField<IDType>(payload, "user-id");
     const auto serverPublicKey = getJsonField<std::string>(payload, "server-public-key");
-    const auto usersChats = getJsonField<std::vector<IDType>>(payload, "users-chats");
     const auto serverName = getJsonField<std::string>(payload, "server-name");
     if (!type.has_value() || *type != "register-result" || !registered.has_value() || !userId.has_value() ||
-        !serverPublicKey.has_value() || !usersChats.has_value() || !serverName.has_value())
+        !serverPublicKey.has_value() || !serverName.has_value())
     {
         return std::nullopt;
     }
@@ -127,7 +142,6 @@ std::optional<ServerRegistrationPayload> JsonParser::parseServerRegistrationPayl
     result.registered = *registered;
     result.userId = *userId;
     result.serverPublicKey = *serverPublicKey;
-    result.usersChats = *usersChats;
     result.serverName = *serverName;
     result.protocolVersion = getJsonField<std::string>(payload, "protocol-version").value_or("1.0");
     return result;
@@ -206,6 +220,43 @@ std::optional<ServerRoomLeftPayload> JsonParser::parseServerRoomLeftPayload(cons
     result.left = *left;
     result.userId = *userId;
     result.chatId = *chatId;
+    return result;
+}
+
+std::optional<ServerChatsRequestPayload> JsonParser::parseServerChatsRequestPayload(const nlohmann::json& payload)
+{
+    const auto type = getJsonField<std::string>(payload, "type");
+    if (!type.has_value() || *type != "chats-payload")
+    {
+        return std::nullopt;
+    }
+
+    const auto chatsIt = payload.find("chats");
+    if (chatsIt == payload.end() || !chatsIt->is_object())
+    {
+        return std::nullopt;
+    }
+
+    ServerChatsRequestPayload result{};
+    result.type = *type;
+
+    for (const auto& [key, value] : chatsIt->items())
+    {
+        if (!value.is_string())
+        {
+            continue;
+        }
+        try
+        {
+            const auto chatId = static_cast<IDType>(std::stoul(key));
+            result.chats.emplace(chatId, value.get<std::string>());
+        }
+        catch (...)
+        {
+            continue;
+        }
+    }
+
     return result;
 }
 
