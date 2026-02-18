@@ -1,7 +1,7 @@
 #include "core/Room.hpp"
 #include "Types.hpp"
 
-Room::Room(IDType roomId, Type type) : roomId_(roomId), type_(type)
+Room::Room(IDType roomId, Type type, const std::string& name) : roomId_(roomId), type_(type), name_(name)
 {
 }
 
@@ -14,6 +14,15 @@ void Room::broadcast(const std::string& message) const
             user->connection->send_text(message);
         }
     }
+}
+
+void Room::setName(const std::string& name)
+{
+    name_ = name;
+}
+const std::string& Room::getName() const
+{
+    return name_;
 }
 
 void Room::addUser(const UserContextPtr& user)

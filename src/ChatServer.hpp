@@ -30,6 +30,7 @@ private:
     void handleChatMessage(const UserContextPtr& user, const ClientChatMessageRequest& request);
     void handleCreateRoomRequest(const UserContextPtr& user, const ClientCreateRoomRequest& request);
     void handleLeaveRoomRequest(const UserContextPtr& user, const ClientLeaveRoomRequest& request);
+    void handleDataRequest(const UserContextPtr& user, const ClientDataRequest& request);
 
     void disconnectIfRegistrationTimedOut(crow::websocket::connection* connection);
     UserContextPtr findUser(crow::websocket::connection* connection);

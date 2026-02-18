@@ -19,11 +19,14 @@ public:
     };
 
     Room() = default;
-    Room(IDType roomId, Type type);
+    Room(IDType roomId, Type type, const std::string& name);
 
     void broadcast(const std::string& message) const;
     void addUser(const UserContextPtr& user);
     void removeUser(const UserContextPtr& user);
+    
+    void setName(const std::string& name);
+    const std::string& getName() const;
 
     [[nodiscard]] bool hasUser(const UserContextPtr& user) const;
     [[nodiscard]] bool empty() const;
@@ -32,6 +35,7 @@ public:
 
 private:
     IDType roomId_ = 0;
+    std::string name_;
     Type type_ = Type::Public;
     std::set<UserContextPtr> users_;
 };

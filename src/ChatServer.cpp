@@ -4,6 +4,7 @@
 #include <thread>
 #include <utility>
 
+#include "protocol/JsonMessages.hpp"
 #include "protocol/JsonPacker.hpp"
 #include "protocol/JsonParser.hpp"
 
@@ -12,7 +13,7 @@ ChatServer::ChatServer(std::string serverName, std::string serverPublicKey, std:
       serverPublicKey_(std::move(serverPublicKey)),
       registrationTimeout_(registrationTimeout)
 {
-    rooms_.emplace(1, Room(1, Room::Type::Public));
+    rooms_.emplace(1, Room(1, Room::Type::Public, "general"));
     init();
 }
 
@@ -168,6 +169,17 @@ void ChatServer::onWebSocketMessage(crow::websocket::connection& conn, const std
             return;
         }
 
+        if(*type == "data-request")
+        {
+            const auto request = JsonParser::parseDataRequest(*jsonPayload);
+            if (!request.has_value())
+            {
+                conn.send_text(JsonPacker::packError({"error", "invalid-data-request", "Error! Fuck you."}));
+                return;
+            }
+            handleDataRequest(user, *request);
+        }
+
         conn.send_text(JsonPacker::packError({"error", "unknown-message-type", "Unsupported message type"}));
     }
     catch (const std::bad_alloc&)
@@ -272,6 +284,7 @@ void ChatServer::handleRegistrationMessage(const UserContextPtr& user, const Cli
             roomIt->second.addUser(user);
             user->roomIds.insert(1);
         }
+        
 
         response.registered = true;
         response.userId = user->userId;
@@ -326,7 +339,7 @@ void ChatServer::handleCreateRoomRequest(const UserContextPtr& user, const Clien
     std::scoped_lock lock(stateMutex_);
 
     const IDType roomId = nextRoomId_.fetch_add(1);
-    Room room(roomId, request.isPrivate ? Room::Type::Private : Room::Type::Public);
+    Room room(roomId, request.isPrivate ? Room::Type::Private : Room::Type::Public, "");
 
     room.addUser(user);
     user->roomIds.insert(roomId);
@@ -399,6 +412,26 @@ void ChatServer::handleLeaveRoomRequest(const UserContextPtr& user, const Client
     response.chatId = request.chatId;
 
     user->connection->send_text(JsonPacker::packRoomLeft(response));
+}
+
+void ChatServer::handleDataRequest(const UserContextPtr& user, const ClientDataRequest& request)
+{
+    if (request.userId != user->userId)
+    {
+        user->connection->send_text(JsonPacker::packError({"error", "wrong-user-id", "Invalid user-id"}));
+        return;
+    }
+    if(request.dataType == "chats")
+    {
+        ServerChatsRequestPayload response;
+        for(const auto& id : user->roomIds)
+        {
+            auto roomFound = rooms_.find(id);
+            if(roomFound != rooms_.end())
+                response.chats[id] = roomFound->second.getName();
+        }
+        user->connection->send_text(JsonPacker::packRequestChatsPayload(response));
+    }
 }
 
 void ChatServer::disconnectIfRegistrationTimedOut(crow::websocket::connection* connection)

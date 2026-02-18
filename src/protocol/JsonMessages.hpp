@@ -31,7 +31,7 @@ struct ClientChatMessageRequest
 struct ClientDataRequest
 {
     std::string type = "data-request";  // Тип сообщения: "chat-msg".
-    std::string dataType;               // Тип запрашиваемых данных ("chats-labels", "messanges")
+    std::string dataType;               // Тип запрашиваемых данных ("chats", "messanges")
     IDType userId = 0;                  // ID отправителя, полученный после регистрации.
 };
 
