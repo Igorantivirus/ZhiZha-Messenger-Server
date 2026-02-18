@@ -12,6 +12,7 @@ struct ClientRegisterRequest
     std::string type = "register";      // Тип сообщения: "register".
     std::string publicKey;              // Открытый ключ клиента в виде простого текста для текущего упрощённого потока.
     std::string username;               // Отображаемое имя; может быть пустым.
+    std::string password;               // Пароль пользователя
     std::string clientVersion;          // Версия клиентского приложения; может быть пустой.
 };
 

@@ -36,6 +36,7 @@ std::optional<ClientRegisterRequest> JsonParser::parseRegisterRequest(const nloh
     request.publicKey = *publicKey;
     request.username = getJsonField<std::string>(payload, "username").value_or("");
     request.clientVersion = getJsonField<std::string>(payload, "client-version").value_or("");
+    request.password = getJsonField<std::string>(payload, "password").value_or("");
     return request;
 }
 
@@ -137,7 +138,7 @@ std::optional<ServerErrorPayload> JsonParser::parseServerErrorPayload(const nloh
     const auto type = getJsonField<std::string>(payload, "type");
     const auto code = getJsonField<std::string>(payload, "code");
     const auto message = getJsonField<std::string>(payload, "message");
-    if (!type.has_value() || *type != "error" || !code.has_value() || !message.has_value())
+    if (!type.has_value() || !code.has_value() || !message.has_value())
     {
         return std::nullopt;
     }

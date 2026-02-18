@@ -4,18 +4,19 @@
 
 using json = nlohmann::json;
 
-std::string JsonPacker::packRegisterRequest(const ClientRegisterRequest& payload)
+std::string JsonPacker::packRegisterRequest(const ClientRegisterRequest &payload)
 {
     return json{
         {"type", payload.type},
         {"public-key", payload.publicKey},
+        {"password", payload.password},
         {"username", payload.username},
         {"client-version", payload.clientVersion},
     }
         .dump();
 }
 
-std::string JsonPacker::packChatMessageRequest(const ClientChatMessageRequest& payload)
+std::string JsonPacker::packChatMessageRequest(const ClientChatMessageRequest &payload)
 {
     return json{
         {"type", payload.type},
@@ -27,7 +28,7 @@ std::string JsonPacker::packChatMessageRequest(const ClientChatMessageRequest& p
         .dump();
 }
 
-std::string JsonPacker::packCreateRoomRequest(const ClientCreateRoomRequest& payload)
+std::string JsonPacker::packCreateRoomRequest(const ClientCreateRoomRequest &payload)
 {
     return json{
         {"type", payload.type},
@@ -38,7 +39,7 @@ std::string JsonPacker::packCreateRoomRequest(const ClientCreateRoomRequest& pay
         .dump();
 }
 
-std::string JsonPacker::packLeaveRoomRequest(const ClientLeaveRoomRequest& payload)
+std::string JsonPacker::packLeaveRoomRequest(const ClientLeaveRoomRequest &payload)
 {
     return json{
         {"type", payload.type},
@@ -48,7 +49,7 @@ std::string JsonPacker::packLeaveRoomRequest(const ClientLeaveRoomRequest& paylo
         .dump();
 }
 
-std::string JsonPacker::packServerHello(const ServerHelloPayload& payload)
+std::string JsonPacker::packServerHello(const ServerHelloPayload &payload)
 {
     return json{
         {"type", payload.type},
@@ -59,10 +60,9 @@ std::string JsonPacker::packServerHello(const ServerHelloPayload& payload)
         .dump();
 }
 
-std::string JsonPacker::packRegistration(const ServerRegistrationPayload& payload)
+std::string JsonPacker::packRegistration(const ServerRegistrationPayload &payload)
 {
-    json res = json
-    {
+    json res = json{
         {"type", payload.type},
         {"registered", payload.registered},
         {"user-id", payload.userId},
@@ -75,7 +75,7 @@ std::string JsonPacker::packRegistration(const ServerRegistrationPayload& payloa
     return res.dump();
 }
 
-std::string JsonPacker::packError(const ServerErrorPayload& payload)
+std::string JsonPacker::packError(const ServerErrorPayload &payload)
 {
     return json{
         {"type", payload.type},
@@ -85,7 +85,7 @@ std::string JsonPacker::packError(const ServerErrorPayload& payload)
         .dump();
 }
 
-std::string JsonPacker::packChatMessage(const ServerChatMessagePayload& payload)
+std::string JsonPacker::packChatMessage(const ServerChatMessagePayload &payload)
 {
     return json{
         {"type", payload.type},
@@ -98,7 +98,7 @@ std::string JsonPacker::packChatMessage(const ServerChatMessagePayload& payload)
         .dump();
 }
 
-std::string JsonPacker::packRoomCreated(const ServerRoomCreatedPayload& payload)
+std::string JsonPacker::packRoomCreated(const ServerRoomCreatedPayload &payload)
 {
     return json{
         {"type", payload.type},
@@ -109,7 +109,7 @@ std::string JsonPacker::packRoomCreated(const ServerRoomCreatedPayload& payload)
         .dump();
 }
 
-std::string JsonPacker::packRoomLeft(const ServerRoomLeftPayload& payload)
+std::string JsonPacker::packRoomLeft(const ServerRoomLeftPayload &payload)
 {
     return json{
         {"type", payload.type},
@@ -120,7 +120,7 @@ std::string JsonPacker::packRoomLeft(const ServerRoomLeftPayload& payload)
         .dump();
 }
 
-std::string JsonPacker::packServerInfo(bool alive, const std::string& serverName)
+std::string JsonPacker::packServerInfo(bool alive, const std::string &serverName)
 {
     return json{
         {"alive", alive},
