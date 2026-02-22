@@ -115,3 +115,10 @@ struct ServerChatsRequestPayload
     std::string type = "chats-payload";       // Тип сообщения: "request-payload".
     std::map<IDType, std::string> chats;        // {chat-id: "chat-name"}
 };
+
+// Сервер -> Клиент: отправка данных
+struct ServerUsersRequestPayload
+{
+    std::string type = "users-payload";       // Тип сообщения: "request-payload".
+    std::map<IDType, std::string> chats;      // {user-id: "user-name"}
+};

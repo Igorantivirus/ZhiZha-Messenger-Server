@@ -22,6 +22,7 @@ public:
     [[nodiscard]] static std::string packRoomCreated(const ServerRoomCreatedPayload& payload);
     [[nodiscard]] static std::string packRoomLeft(const ServerRoomLeftPayload& payload);
     [[nodiscard]] static std::string packRequestChatsPayload(const ServerChatsRequestPayload& payload);
+    [[nodiscard]] static std::string packRequestUsersPayload(const ServerUsersRequestPayload& payload);
 
     // HTTP responses
     [[nodiscard]] static std::string packServerInfo(bool alive, const std::string& serverName);

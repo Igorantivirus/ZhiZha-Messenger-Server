@@ -260,6 +260,43 @@ std::optional<ServerChatsRequestPayload> JsonParser::parseServerChatsRequestPayl
     return result;
 }
 
+std::optional<ServerUsersRequestPayload> JsonParser::parseServerUsersRequestPayload(const nlohmann::json& payload)
+{
+    const auto type = getJsonField<std::string>(payload, "type");
+    if (!type.has_value() || *type != "users-payload")
+    {
+        return std::nullopt;
+    }
+
+    const auto usersIt = payload.find("users");
+    if (usersIt == payload.end() || !usersIt->is_object())
+    {
+        return std::nullopt;
+    }
+
+    ServerUsersRequestPayload result{};
+    result.type = *type;
+
+    for (const auto& [key, value] : usersIt->items())
+    {
+        if (!value.is_string())
+        {
+            continue;
+        }
+        try
+        {
+            const auto chatId = static_cast<IDType>(std::stoul(key));
+            result.chats.emplace(chatId, value.get<std::string>());
+        }
+        catch (...)
+        {
+            continue;
+        }
+    }
+
+    return result;
+}
+
 std::optional<bool> JsonParser::parseServerAlive(const nlohmann::json& payload)
 {
     return getJsonField<bool>(payload, "alive");
