@@ -78,7 +78,8 @@ std::optional<ClientCreateRoomRequest> JsonParser::parseCreateRoomRequest(const 
 {
     const auto userId = getJsonField<IDType>(payload, "user-id");
     const auto participantUserIds = getJsonField<std::vector<IDType>>(payload, "participant-user-ids");
-    if (!userId.has_value() || !participantUserIds.has_value())
+    const auto name = getJsonField<std::string>(payload, "name");
+    if (!userId.has_value() || !participantUserIds.has_value() || !name.has_value())
     {
         return std::nullopt;
     }
@@ -86,6 +87,7 @@ std::optional<ClientCreateRoomRequest> JsonParser::parseCreateRoomRequest(const 
     ClientCreateRoomRequest request;
     request.userId = *userId;
     request.participantUserIds = *participantUserIds;
+    request.name = *name;
     request.isPrivate = getJsonField<bool>(payload, "is-private").value_or(true);
     return request;
 }
@@ -192,8 +194,9 @@ std::optional<ServerRoomCreatedPayload> JsonParser::parseServerRoomCreatedPayloa
     const auto created = getJsonField<bool>(payload, "created");
     const auto chatId = getJsonField<IDType>(payload, "chat-id");
     const auto participantUserIds = getJsonField<std::vector<IDType>>(payload, "participant-user-ids");
+    const auto name = getJsonField<std::string>(payload, "name");
     if (!type.has_value() || *type != "room-created" || !created.has_value() || !chatId.has_value() ||
-        !participantUserIds.has_value())
+        !participantUserIds.has_value() || !name.has_value())
     {
         return std::nullopt;
     }
@@ -202,6 +205,7 @@ std::optional<ServerRoomCreatedPayload> JsonParser::parseServerRoomCreatedPayloa
     result.created = *created;
     result.chatId = *chatId;
     result.participantUserIds = *participantUserIds;
+    result.name = *name;
     return result;
 }
 
@@ -286,7 +290,7 @@ std::optional<ServerUsersRequestPayload> JsonParser::parseServerUsersRequestPayl
         try
         {
             const auto chatId = static_cast<IDType>(std::stoul(key));
-            result.chats.emplace(chatId, value.get<std::string>());
+            result.users.emplace(chatId, value.get<std::string>());
         }
         catch (...)
         {
@@ -294,6 +298,27 @@ std::optional<ServerUsersRequestPayload> JsonParser::parseServerUsersRequestPayl
         }
     }
 
+    return result;
+}
+
+std::optional<ServerUsersSomeChange> JsonParser::parseServerUsersSomeChange(const nlohmann::json& payload)
+{
+    const auto type = getJsonField<std::string>(payload, "type");
+    const auto changeType =
+        getJsonField<std::string>(payload, "change-type").value_or(getJsonField<std::string>(payload, "changeType").value_or(""));
+    const auto userId = getJsonField<IDType>(payload, "user-id");
+    const auto username = getJsonField<std::string>(payload, "username");
+
+    if (!type.has_value() || *type != "user-change" || changeType.empty() || !userId.has_value() || !username.has_value())
+    {
+        return std::nullopt;
+    }
+
+    ServerUsersSomeChange result{};
+    result.type = *type;
+    result.changeType = changeType;
+    result.userId = *userId;
+    result.username = *username;
     return result;
 }
 

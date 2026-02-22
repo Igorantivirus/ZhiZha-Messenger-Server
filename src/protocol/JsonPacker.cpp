@@ -46,6 +46,7 @@ std::string JsonPacker::packCreateRoomRequest(const ClientCreateRoomRequest &pay
         {"user-id", payload.userId},
         {"participant-user-ids", payload.participantUserIds},
         {"is-private", payload.isPrivate},
+        {"name", payload.name}
     }
         .dump();
 }
@@ -115,6 +116,8 @@ std::string JsonPacker::packRoomCreated(const ServerRoomCreatedPayload &payload)
         {"created", payload.created},
         {"chat-id", payload.chatId},
         {"participant-user-ids", payload.participantUserIds},
+        {"chatname", payload.name},
+        {"name", payload.name}
     }
         .dump();
 }
@@ -158,15 +161,26 @@ std::string JsonPacker::packRequestChatsPayload(const ServerChatsRequestPayload 
 std::string JsonPacker::packRequestUsersPayload(const ServerUsersRequestPayload& payload)
 {
     json chatsJson = json::object();
-    for (const auto &[chatId, chatName] : payload.chats)
+    for (const auto &[chatId, userName] : payload.users)
     {
         // JSON object keys are strings by definition.
-        chatsJson[std::to_string(chatId)] = chatName;
+        chatsJson[std::to_string(chatId)] = userName;
     }
 
     return json{
         {"type", payload.type},
-        {"chats", std::move(chatsJson)},
+        {"users", std::move(chatsJson)},
+    }
+        .dump();
+}
+
+std::string JsonPacker::packUserChange(const ServerUsersSomeChange& payload)
+{
+    return json{
+        {"type", payload.type},
+        {"change-type", payload.changeType},
+        {"user-id", payload.userId},
+        {"username", payload.username},
     }
         .dump();
 }

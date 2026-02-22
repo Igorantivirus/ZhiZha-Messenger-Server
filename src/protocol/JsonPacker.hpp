@@ -23,6 +23,7 @@ public:
     [[nodiscard]] static std::string packRoomLeft(const ServerRoomLeftPayload& payload);
     [[nodiscard]] static std::string packRequestChatsPayload(const ServerChatsRequestPayload& payload);
     [[nodiscard]] static std::string packRequestUsersPayload(const ServerUsersRequestPayload& payload);
+    [[nodiscard]] static std::string packUserChange(const ServerUsersSomeChange& payload);
 
     // HTTP responses
     [[nodiscard]] static std::string packServerInfo(bool alive, const std::string& serverName);

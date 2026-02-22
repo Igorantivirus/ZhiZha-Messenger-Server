@@ -52,6 +52,7 @@ public:
     [[nodiscard]] static std::optional<ServerRoomLeftPayload> parseServerRoomLeftPayload(const nlohmann::json& payload);
     [[nodiscard]] static std::optional<ServerChatsRequestPayload> parseServerChatsRequestPayload(const nlohmann::json& payload);
     [[nodiscard]] static std::optional<ServerUsersRequestPayload> parseServerUsersRequestPayload(const nlohmann::json& payload);
+    [[nodiscard]] static std::optional<ServerUsersSomeChange> parseServerUsersSomeChange(const nlohmann::json& payload);
 
     // HTTP responses
     [[nodiscard]] static std::optional<bool> parseServerAlive(const nlohmann::json& payload);

@@ -42,6 +42,7 @@ struct ClientCreateRoomRequest
     IDType userId = 0;                       // ID пользователя, создающего комнату.
     std::vector<IDType> participantUserIds;  // Пользователи, которых нужно включить в комнату.
     bool isPrivate = true;                   // true = приватная комната, false = публичная комната.
+    std::string name;                        // Имя комнаты
 };
 
 // Клиент -> Сервер: выход из существующей комнаты.
@@ -98,6 +99,7 @@ struct ServerRoomCreatedPayload
     bool created = false;                    // true, если комната создана.
     IDType chatId = 0;                       // ID новой комнаты.
     std::vector<IDType> participantUserIds;  // Фактические ID участников, добавленных в комнату.
+    std::string name;                    // Имя чата
 };
 
 // Сервер -> Клиент: ответ на выход из комнаты.
@@ -120,5 +122,14 @@ struct ServerChatsRequestPayload
 struct ServerUsersRequestPayload
 {
     std::string type = "users-payload";       // Тип сообщения: "request-payload".
-    std::map<IDType, std::string> chats;      // {user-id: "user-name"}
+    std::map<IDType, std::string> users;      // {user-id: "user-name"}
+};
+
+// Сервер -> Клиент: изменение информации о пользователе
+struct ServerUsersSomeChange
+{
+    std::string type = "user-change";       // Тип сообщения: "request-payload"
+    std::string changeType;                 // "connection", "logout", "rename"
+    IDType userId;
+    std::string username;
 };
