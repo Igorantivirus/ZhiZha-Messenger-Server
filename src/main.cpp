@@ -3,7 +3,7 @@
 
 #include "ChatServer.hpp"
 
-#include "Core/KeyGenerator.hpp"
+#include "core/KeyGenerator.hpp"
 
 int main()
 {
