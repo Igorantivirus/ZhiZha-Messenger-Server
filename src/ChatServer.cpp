@@ -178,6 +178,7 @@ void ChatServer::onWebSocketMessage(crow::websocket::connection& conn, const std
                 return;
             }
             handleDataRequest(user, *request);
+            return;
         }
 
         conn.send_text(JsonPacker::packError({"error", "unknown-message-type", "Unsupported message type"}));
@@ -220,6 +221,8 @@ void ChatServer::onWebSocketClose(crow::websocket::connection& conn, const std::
             }
         }
     }
+
+    sendAllNewUserInfo(user, "logout");
 
     clients_.erase(clientIt);
 }
@@ -284,7 +287,8 @@ void ChatServer::handleRegistrationMessage(const UserContextPtr& user, const Cli
             roomIt->second.addUser(user);
             user->roomIds.insert(1);
         }
-        
+    
+        sendAllNewUserInfo(user, "registered");
 
         response.registered = true;
         response.userId = user->userId;
@@ -339,7 +343,7 @@ void ChatServer::handleCreateRoomRequest(const UserContextPtr& user, const Clien
     std::scoped_lock lock(stateMutex_);
 
     const IDType roomId = nextRoomId_.fetch_add(1);
-    Room room(roomId, request.isPrivate ? Room::Type::Private : Room::Type::Public, "");
+    Room room(roomId, request.isPrivate ? Room::Type::Private : Room::Type::Public, request.name);
 
     room.addUser(user);
     user->roomIds.insert(roomId);
@@ -372,8 +376,17 @@ void ChatServer::handleCreateRoomRequest(const UserContextPtr& user, const Clien
     response.created = true;
     response.chatId = roomId;
     response.participantUserIds = participants;
+    response.name = request.name;
 
-    user->connection->send_text(JsonPacker::packRoomCreated(response));
+    std::string toSend = JsonPacker::packRoomCreated(response);
+
+    for(const auto& id : response.participantUserIds)
+    {
+        auto user = usersById_.find(id);
+        if(user == usersById_.end())
+            continue;
+        user->second->connection->send_text(toSend);
+    }
 }
 
 void ChatServer::handleLeaveRoomRequest(const UserContextPtr& user, const ClientLeaveRoomRequest& request)
@@ -432,6 +445,18 @@ void ChatServer::handleDataRequest(const UserContextPtr& user, const ClientDataR
         }
         user->connection->send_text(JsonPacker::packRequestChatsPayload(response));
     }
+    else if(request.dataType == "users")
+    {
+        ServerUsersRequestPayload response;
+        for(const auto& [connection, userPtr] : clients_)
+        {
+            if(userPtr->userId != user->userId)
+                response.users[userPtr->userId] = userPtr->username;
+        }
+        std::string res = JsonPacker::packRequestUsersPayload(response);
+        std::cout << "To user: " << res << '\n';
+        user->connection->send_text(res);
+    }
 }
 
 void ChatServer::disconnectIfRegistrationTimedOut(crow::websocket::connection* connection)
@@ -463,4 +488,19 @@ UserContextPtr ChatServer::findUser(crow::websocket::connection* connection)
         return nullptr;
     }
     return it->second;
+}
+
+void ChatServer::sendAllNewUserInfo(UserContextPtr newUser, std::string info)
+{
+    if(!newUser || !newUser->authorized.load())
+        return;
+    ServerUsersSomeChange change;
+    change.changeType = std::move(info);
+    change.userId = newUser->userId;
+    change.username = newUser->username;
+    std::string msg = JsonPacker::packUserChange(std::move(change));
+
+    for(auto& [conn, userPtr] : clients_)
+        if(userPtr->authorized.load() && userPtr->userId != newUser->userId)
+            conn->send_text(msg);
 }

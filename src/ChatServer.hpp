@@ -50,5 +50,10 @@ private:
     std::atomic<IDType> nextUserId_{1};
     std::atomic<IDType> nextRoomId_{2};
     std::atomic<std::uint64_t> nextServerMessageId_{1};
+
+private:
+
+    void sendAllNewUserInfo(UserContextPtr newUser, std::string info);
+
 };
 
