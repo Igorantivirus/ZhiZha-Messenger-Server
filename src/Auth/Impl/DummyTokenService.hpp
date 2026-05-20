@@ -24,7 +24,7 @@ public:
         rand_.setDefaultLength(32);
     }
 
-    TokenPair issuePair(UserId userId) override
+    AuthSuccess issuePair(UserId userId) override
     {
         std::time_t now = getCurrentTime();
 
@@ -41,9 +41,13 @@ public:
                                         .issuedAt = now,
                                         .expiresAt = now + refreshTtlSeconds_});
 
-        return TokenPair{
-            .access = std::move(access),
-            .refresh = std::move(refresh)};
+        return AuthSuccess{
+            .userId = userId,
+            .tokens = TokenPair{
+                .access = std::move(access),
+                .refresh = std::move(refresh)},
+            .accessTtl = accessTtlSeconds_,
+            .refreshTtl = refreshTtlSeconds_};
     }
 
     std::optional<UserId> validateAccess(const std::string &accessToken) override
@@ -62,7 +66,7 @@ public:
         return record->userId;
     }
 
-    std::optional<TokenPair> refresh(const std::string &refreshToken) override
+    std::optional<AuthSuccess> refresh(const std::string &refreshToken) override
     {
         // 1. Ищем refresh в БД
         auto record = refreshStore_.find(refreshToken);

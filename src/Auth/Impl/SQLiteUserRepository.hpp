@@ -36,7 +36,7 @@ public:
         return std::nullopt;
     }
 
-    UserId create(const std::string &username, const std::string &passwordHash) override
+    UserId create(const std::string &username, const std::string &displayName, const std::string &passwordHash) override
     {
         const std::int64_t now = static_cast<int64_t>(std::time(nullptr));
 
@@ -44,7 +44,7 @@ public:
         insert.bind(1, username);
         insert.bind(2, passwordHash);
         insert.bind(3, now);
-        insert.bind(4, username);
+        insert.bind(4, displayName);
 
         insert.exec();
         return db_.getLastInsertRowid(); // возвращает rowid (он же id)
