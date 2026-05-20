@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ctime>
+#include <memory>
 #include <optional>
 
 #include <SQLiteCpp/SQLiteCpp.h>
@@ -10,15 +11,15 @@
 class SQLiteUserRepository : public IUserRepository
 {
 public:
-    SQLiteUserRepository(const std::string &fileName)
-        : db_(fileName, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE)
+    explicit SQLiteUserRepository(std::shared_ptr<SQLite::Database> db)
+        : db_(std::move(db))
     {
-        db_.exec(CREATE_TABLE_COMMAND.data());
+        db_->exec(CREATE_TABLE_COMMAND.data());
     }
 
     std::optional<User> findUserByUsername(const std::string &username) const override
     {
-        SQLite::Statement query(db_, SELECT_BY_USERNAME.data());
+        SQLite::Statement query(*db_, SELECT_BY_USERNAME.data());
         query.bind(1, username);
 
         if (query.executeStep())
@@ -28,7 +29,7 @@ public:
 
     std::optional<User> findUserById(const UserId id) const override
     {
-        SQLite::Statement query(db_, SELECT_BY_ID.data());
+        SQLite::Statement query(*db_, SELECT_BY_ID.data());
         query.bind(1, static_cast<int64_t>(id)); // UserId = uint64_t, bind ожидает int64_t
 
         if (query.executeStep())
@@ -40,19 +41,19 @@ public:
     {
         const std::int64_t now = static_cast<int64_t>(std::time(nullptr));
 
-        SQLite::Statement insert(db_, INSERT_USER_COMMAND.data());
+        SQLite::Statement insert(*db_, INSERT_USER_COMMAND.data());
         insert.bind(1, username);
         insert.bind(2, passwordHash);
         insert.bind(3, now);
         insert.bind(4, displayName);
 
         insert.exec();
-        return db_.getLastInsertRowid(); // возвращает rowid (он же id)
+        return db_->getLastInsertRowid(); // возвращает rowid (он же id)
     }
 
     bool updateUsername(const UserId id, const std::string newUsername) override
     {
-        SQLite::Statement stmt(db_, UPDATE_USERNAME_COMMAND.data());
+        SQLite::Statement stmt(*db_, UPDATE_USERNAME_COMMAND.data());
         stmt.bind(1, newUsername);
         stmt.bind(2, id);
 
@@ -61,7 +62,7 @@ public:
 
     bool updatePasswordHash(const UserId id, const std::string newPasswordHash) override
     {
-        SQLite::Statement stmt(db_, UPDATE_PASSWORD_HASH_COMMAND.data());
+        SQLite::Statement stmt(*db_, UPDATE_PASSWORD_HASH_COMMAND.data());
         stmt.bind(1, newPasswordHash);
         stmt.bind(2, id);
 
@@ -81,8 +82,8 @@ private:
         return user;
     }
 
-    // mutable, чтобы вызывать неконстантные методы Statement из const-функций
-    mutable SQLite::Database db_;
+    // Общая БД всего сервера — владение разделяется через shared_ptr.
+    std::shared_ptr<SQLite::Database> db_;
 
     // SQL-команды
     static constexpr std::string_view CREATE_TABLE_COMMAND =
