@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <ChatService/Types/RoomInfo.hpp>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -23,16 +23,28 @@ enum class WsMessageType
     pong,        // сервер -> клиент: ответ на ping
     error,       // сервер -> клиент: ошибка (может прийти в любой момент)
     sendMessage, // клиент -> сервер: отправить сообщение в чат (заглушка под ChatService)
-    newMessage   // сервер -> клиент: новое сообщение в чате (заглушка под ChatService)
+    newMessage,  // сервер -> клиент: новое сообщение в чате (заглушка под ChatService)
+    createRoom,  // клиент -> сервер: создать комнату
+    leaveRoom,   // клиент -> сервер: покинуть комнату
+    userLeft,    // сервер -> клиент: пользователь покинул комнату
+    roomCreated  // сервер -> клиент: создана комната
 };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(WsMessageType, {
-    {WsMessageType::unknown, "unknown"},
-    {WsMessageType::ping, "ping"},
-    {WsMessageType::pong, "pong"},
-    {WsMessageType::error, "error"},
-    {WsMessageType::sendMessage, "sendMessage"},
-    {WsMessageType::newMessage, "newMessage"},
+NLOHMANN_JSON_SERIALIZE_ENUM(
+    WsMessageType,
+    {
+        {WsMessageType::unknown,     "unknown"    },
+        {WsMessageType::ping,        "ping"       },
+        {WsMessageType::pong,        "pong"       },
+        {WsMessageType::error,       "error"      },
+
+        {WsMessageType::sendMessage, "sendMessage"},
+        {WsMessageType::createRoom,  "createRoom" },
+        {WsMessageType::leaveRoom,   "leaveRoom"  },
+
+        {WsMessageType::newMessage,  "newMessage" },
+        {WsMessageType::userLeft,    "userLeft"   },
+        {WsMessageType::roomCreated, "roomCreated"},
 })
 
 // Лёгкий конверт: парсим только type, чтобы понять, что десериализовать дальше.
@@ -68,19 +80,73 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ErrorMessage, type, code, message)
 struct SendMessageRequest
 {
     WsMessageType type = WsMessageType::sendMessage;
-    std::int64_t chatId = 0;
+    RoomId roomId = 0;
     std::string text;
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SendMessageRequest, type, chatId, text)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SendMessageRequest, type, roomId, text)
 
-struct NewMessage
+struct CreateRoomRequest
+{
+    WsMessageType type = WsMessageType::createRoom;
+    std::string roomName;
+    info::RoomInfo roomInfo;
+    std::vector<UserId> invitedUsers;
+};
+NLOHMANN_JSON_SERIALIZE_ENUM(
+    info::RoomKind,
+    {
+        {info::RoomKind::Channel, "chanel"},
+        {info::RoomKind::Direct,  "direct"},
+        {info::RoomKind::Group,   "group" }
+})
+NLOHMANN_JSON_SERIALIZE_ENUM(
+    info::JoinPolicy,
+    {
+        {info::JoinPolicy::ByAdmin,  "by-admin" },
+        {info::JoinPolicy::ByMember, "by-member"},
+        {info::JoinPolicy::Closed,   "closed"   },
+        {info::JoinPolicy::Public,   "public"   }
+})
+NLOHMANN_JSON_SERIALIZE_ENUM(
+    info::WritePolicy,
+    {
+        {info::WritePolicy::AdminsOnly, "admins-only"},
+        {info::WritePolicy::Everyone,   "everyone"   }
+})
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(info::RoomInfo, kind, joinPolicy, writePolicy)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(CreateRoomRequest, type, roomName, roomInfo)
+
+struct LeaveRoomRequest
+{
+    WsMessageType type = WsMessageType::leaveRoom;
+    RoomId roomId;
+};
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LeaveRoomRequest, type, roomId)
+
+struct NewMessageEvent
 {
     WsMessageType type = WsMessageType::newMessage;
-    std::int64_t chatId = 0;
+    MessageId messageId;
+    RoomId roomId = 0;
     UserId senderId = 0;
     std::string text;
-    std::time_t sentAt = 0;
+    std::time_t createdAt = 0;
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(NewMessage, type, chatId, senderId, text, sentAt)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(NewMessageEvent, type, messageId, roomId, senderId, text, createdAt)
+
+struct UserLeftEvent
+{
+    WsMessageType type = WsMessageType::userLeft;
+    RoomId roomId;
+    UserId userId;
+};
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserLeftEvent, type, roomId, userId)
+
+struct RoomCreatedEvent
+{
+    WsMessageType type = WsMessageType::roomCreated;
+    RoomId roomId;
+};
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomCreatedEvent, type, roomId)
 
 } // namespace protocol::ws
