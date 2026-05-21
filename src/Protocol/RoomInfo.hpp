@@ -1,6 +1,6 @@
 #pragma once
 
-namespace info
+namespace protocol
 {
 // Тип комнаты
 enum class RoomKind
