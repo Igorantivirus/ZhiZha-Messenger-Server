@@ -12,7 +12,8 @@
 #include <Protocol/Api.hpp>
 #include <Protocol/Ws.hpp>
 #include <Sessions/SessionManager.hpp>
-#include <Utils/Types.hpp>
+#include <Protocol/Types.hpp>
+#include <Protocol/Parsing.hpp>
 
 // WebSocket-слой. Аутентификация — в handshake: клиент шлёт
 // Authorization: Bearer <accessToken>. Невалидный токен => подключение
@@ -57,17 +58,17 @@ private:
     // Crow перенесёт его в connection.userdata(), и оно доживёт до onclose.
     bool onAccept(const crow::request &req, void **userdata)
     {
-        std::optional<UserId> userId = extractUserId(req);
+        std::optional<protocol::UserId> userId = extractUserId(req);
         if (!userId)
             return false;
 
-        *userdata = new UserId(*userId);
+        *userdata = new protocol::UserId(*userId);
         return true;
     }
 
     void onOpen(crow::websocket::connection &conn)
     {
-        const UserId userId = userIdOf(conn);
+        const protocol::UserId userId = userIdOf(conn);
         sessions_.add(conn, userId);
         if (chat_)
             chat_->onUserConnected(userId);
@@ -77,7 +78,7 @@ private:
     {
         if (isBinary)
         {
-            sendError(conn, protocol::api::ErrorCode::invalidFormat, "Binary frames are not supported");
+            sendError(conn, protocol::ErrorCode::invalidFormat, "Binary frames are not supported");
             return;
         }
 
@@ -88,7 +89,7 @@ private:
         }
         catch (const std::exception &)
         {
-            sendError(conn, protocol::api::ErrorCode::invalidFormat, "Message is not valid JSON");
+            sendError(conn, protocol::ErrorCode::invalidFormat, "Message is not valid JSON");
             return;
         }
 
@@ -105,7 +106,7 @@ private:
         sessions_.remove(conn);
 
         // userdata выделяли в onAccept — освобождаем здесь.
-        delete static_cast<UserId *>(conn.userdata());
+        delete static_cast<protocol::UserId *>(conn.userdata());
         conn.userdata(nullptr);
     }
 
@@ -127,7 +128,7 @@ private:
             return;
 
         default:
-            sendError(conn, protocol::api::ErrorCode::unknownMessageType, "Unsupported message type");
+            sendError(conn, protocol::ErrorCode::unknownMessageType, "Unsupported message type");
             return;
         }
     }
@@ -136,7 +137,7 @@ private:
     {
         if (!chat_)
         {
-            sendError(conn, protocol::api::ErrorCode::internalError, "Chat service is not available yet");
+            sendError(conn, protocol::ErrorCode::internalError, "Chat service is not available yet");
             return;
         }
 
@@ -147,7 +148,7 @@ private:
         }
         catch (const std::exception &)
         {
-            sendError(conn, protocol::api::ErrorCode::invalidFormat, "Malformed sendMessage payload");
+            sendError(conn, protocol::ErrorCode::invalidFormat, "Malformed sendMessage payload");
             return;
         }
 
@@ -159,7 +160,7 @@ private:
     // ─────────────────────────────────────────────────────────────
 
     // Извлекает и валидирует access-токен из handshake-заголовка.
-    std::optional<UserId> extractUserId(const crow::request &req) const
+    std::optional<protocol::UserId> extractUserId(const crow::request &req) const
     {
         std::string header = req.get_header_value("Authorization");
         if (header.empty() || !header.starts_with("Bearer "))
@@ -169,12 +170,12 @@ private:
     }
 
     // userId соединения, гарантированно установленный в onAccept.
-    static UserId userIdOf(crow::websocket::connection &conn)
+    static protocol::UserId userIdOf(crow::websocket::connection &conn)
     {
-        return *static_cast<UserId *>(conn.userdata());
+        return *static_cast<protocol::UserId *>(conn.userdata());
     }
 
-    static void sendError(crow::websocket::connection &conn, protocol::api::ErrorCode code, std::string message)
+    static void sendError(crow::websocket::connection &conn, protocol::ErrorCode code, std::string message)
     {
         protocol::ws::ErrorMessage err{.code = code, .message = std::move(message)};
         conn.send_text(nlohmann::json(err).dump());

@@ -2,7 +2,7 @@
 
 #include <ctime>
 
-#include <Utils/Types.hpp>
+#include <Protocol/Types.hpp>
 
 #include <Auth/Types/TokenPair.hpp>
 
@@ -10,7 +10,7 @@
 // ttl нужен транспорту, чтобы отдать клиенту accessExpiresIn/refreshExpiresIn.
 struct AuthSuccess
 {
-    UserId userId;
+    protocol::UserId userId;
     TokenPair tokens;
     std::time_t accessTtl;  // секунд до истечения access
     std::time_t refreshTtl; // секунд до истечения refresh

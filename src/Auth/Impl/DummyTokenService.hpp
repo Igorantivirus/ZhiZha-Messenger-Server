@@ -24,7 +24,7 @@ public:
         rand_.setDefaultLength(32);
     }
 
-    AuthSuccess issuePair(UserId userId) override
+    AuthSuccess issuePair(protocol::UserId userId) override
     {
         std::time_t now = getCurrentTime();
 
@@ -50,7 +50,7 @@ public:
             .refreshTtl = refreshTtlSeconds_};
     }
 
-    std::optional<UserId> validateAccess(const std::string &accessToken) override
+    std::optional<protocol::UserId> validateAccess(const std::string &accessToken) override
     {
         auto record = accessStore_.find(accessToken);
         if (!record)
@@ -94,7 +94,7 @@ public:
         refreshStore_.remove(refreshToken);
     }
 
-    void revokeAllForUser(UserId userId) override
+    void revokeAllForUser(protocol::UserId userId) override
     {
         refreshStore_.removeAllForUser(userId);
         accessStore_.removeAllForUser(userId);

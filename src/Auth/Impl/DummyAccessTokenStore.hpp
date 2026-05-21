@@ -29,7 +29,7 @@ public:
         records_.erase(hashToken(accessToken));
     }
 
-    void removeAllForUser(UserId userId) override
+    void removeAllForUser(protocol::UserId userId) override
     {
         std::unique_lock lock(mtx_);
         std::erase_if(records_, [userId](const auto &pair)

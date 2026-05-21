@@ -3,7 +3,7 @@
 #include <expected>
 #include <optional>
 
-#include <Utils/Types.hpp>
+#include <Protocol/Types.hpp>
 
 #include "Interfaces/ICredentialsValidator.hpp"
 #include "Interfaces/IPasswordHasher.hpp"
@@ -35,7 +35,7 @@ public:
 
         std::string passwordHash = hasher_.hash(password);
 
-        UserId newId = users_.create(username, displayName, passwordHash);
+        protocol::UserId newId = users_.create(username, displayName, passwordHash);
 
         return tokens_.issuePair(newId);
     }
@@ -72,13 +72,13 @@ public:
     }
 
     // Выход со всех устройств
-    void logoutAll(UserId userId)
+    void logoutAll(protocol::UserId userId)
     {
         tokens_.revokeAllForUser(userId);
     }
 
     // Проверка access-токена
-    std::optional<UserId> validateAccess(const std::string &accessToken)
+    std::optional<protocol::UserId> validateAccess(const std::string &accessToken)
     {
         return tokens_.validateAccess(accessToken);
     }

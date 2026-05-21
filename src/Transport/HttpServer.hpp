@@ -11,7 +11,8 @@
 #include <Auth/AuthService.hpp>
 #include <Protocol/Api.hpp>
 #include <Protocol/Auth.hpp>
-#include <Utils/Types.hpp>
+#include <Protocol/Types.hpp>
+#include <Protocol/Parsing.hpp>
 
 // REST-слой аутентификации. Тонкий: парсит тело -> DTO, зовёт AuthService,
 // раскладывает доменный результат в HTTP-ответ. Никакой бизнес-логики.
@@ -88,7 +89,7 @@ private:
     {
         protocol::auth::RegisterRequest dto;
         if (!parseBody(req, dto))
-            return errorResponse(400, protocol::api::ErrorCode::invalidFormat, "Malformed request body");
+            return errorResponse(400, protocol::ErrorCode::invalidFormat, "Malformed request body");
 
         auto result = auth_.registerUser(dto.username, dto.password, dto.displayName);
         if (!result.has_value())
@@ -101,7 +102,7 @@ private:
     {
         protocol::auth::LoginRequest dto;
         if (!parseBody(req, dto))
-            return errorResponse(400, protocol::api::ErrorCode::invalidFormat, "Malformed request body");
+            return errorResponse(400, protocol::ErrorCode::invalidFormat, "Malformed request body");
 
         auto result = auth_.login(dto.username, dto.password);
         if (!result.has_value())
@@ -115,11 +116,11 @@ private:
         // refresh-токен ВСЕГДА в теле, не в заголовке
         protocol::auth::RefreshRequest dto;
         if (!parseBody(req, dto))
-            return errorResponse(400, protocol::api::ErrorCode::invalidFormat, "Malformed request body");
+            return errorResponse(400, protocol::ErrorCode::invalidFormat, "Malformed request body");
 
         auto result = auth_.refresh(dto.refreshToken);
         if (!result.has_value())
-            return errorResponse(401, protocol::api::ErrorCode::invalidRefreshToken,
+            return errorResponse(401, protocol::ErrorCode::invalidRefreshToken,
                                  "Refresh token is invalid or expired");
 
         return successResponse(200, result.value());
@@ -129,7 +130,7 @@ private:
     {
         protocol::auth::LogoutRequest dto;
         if (!parseBody(req, dto))
-            return errorResponse(400, protocol::api::ErrorCode::invalidFormat, "Malformed request body");
+            return errorResponse(400, protocol::ErrorCode::invalidFormat, "Malformed request body");
 
         // logout идемпотентен — даже если такого refresh уже нет, ответ тот же
         auth_.logout(dto.refreshToken);
@@ -141,7 +142,7 @@ private:
         // Этот endpoint требует ACCESS-токен (а не refresh) — из заголовка
         auto userId = requireAuth(req);
         if (!userId)
-            return errorResponse(401, protocol::api::ErrorCode::unauthorized,
+            return errorResponse(401, protocol::ErrorCode::unauthorized,
                                  "Invalid or missing access token");
 
         auth_.logoutAll(*userId);
@@ -154,7 +155,7 @@ private:
 
     // Извлекает access-токен из заголовка Authorization: Bearer <token>
     // и проверяет его. Возвращает userId если всё ок.
-    std::optional<UserId> requireAuth(const crow::request &req) const
+    std::optional<protocol::UserId> requireAuth(const crow::request &req) const
     {
         std::string header = req.get_header_value("Authorization");
         if (header.empty() || !header.starts_with("Bearer "))
@@ -201,7 +202,7 @@ private:
     }
 
     // Единый формат ошибки.
-    static crow::response errorResponse(int code, protocol::api::ErrorCode error, std::string message)
+    static crow::response errorResponse(int code, protocol::ErrorCode error, std::string message)
     {
         protocol::api::ErrorResponse dto{.code = error, .message = std::move(message)};
         return jsonResponse(code, dto);
@@ -213,18 +214,18 @@ private:
         switch (e)
         {
         case AuthError::UsernameTaken:
-            return errorResponse(409, protocol::api::ErrorCode::usernameTaken, "Username is already taken");
+            return errorResponse(409, protocol::ErrorCode::usernameTaken, "Username is already taken");
         case AuthError::InvalidCredentials:
-            return errorResponse(401, protocol::api::ErrorCode::invalidCredentials, "Invalid username or password");
+            return errorResponse(401, protocol::ErrorCode::invalidCredentials, "Invalid username or password");
         case AuthError::WeakPassword:
-            return errorResponse(400, protocol::api::ErrorCode::weakPassword, "Password does not meet requirements");
+            return errorResponse(400, protocol::ErrorCode::weakPassword, "Password does not meet requirements");
         case AuthError::UsernameValidation:
-            return errorResponse(400, protocol::api::ErrorCode::usernameValidation, "Username does not meet requirements");
+            return errorResponse(400, protocol::ErrorCode::usernameValidation, "Username does not meet requirements");
         case AuthError::InvalidToken:
         case AuthError::TokenExpired:
         case AuthError::TokenReused:
-            return errorResponse(401, protocol::api::ErrorCode::invalidToken, "Token is invalid or expired");
+            return errorResponse(401, protocol::ErrorCode::invalidToken, "Token is invalid or expired");
         }
-        return errorResponse(500, protocol::api::ErrorCode::internalError, "Internal server error");
+        return errorResponse(500, protocol::ErrorCode::internalError, "Internal server error");
     }
 };

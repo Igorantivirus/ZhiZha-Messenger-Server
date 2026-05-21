@@ -2,11 +2,11 @@
 
 #include <string>
 
-#include <Utils/Types.hpp>
+#include <Protocol/Types.hpp>
 
 struct User
 {
-    UserId id;
+    protocol::UserId id;
     std::string username;
     std::string passwordHash;
     std::int64_t registerTime;

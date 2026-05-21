@@ -33,7 +33,7 @@ public:
         if (query.executeStep())
         {
             return RefreshRecord{
-                .userId = static_cast<UserId>(query.getColumn(0).getInt64()),
+                .userId = static_cast<protocol::UserId>(query.getColumn(0).getInt64()),
                 .issuedAt = query.getColumn(1).getInt64(),
                 .expiresAt = query.getColumn(2).getInt64()};
         }
@@ -47,7 +47,7 @@ public:
         stmt.exec();
     }
 
-    void removeAllForUser(UserId userId) override
+    void removeAllForUser(protocol::UserId userId) override
     {
         SQLite::Statement stmt(*db_, DELETE_BY_USER_COMMAND.data());
         stmt.bind(1, static_cast<int64_t>(userId));

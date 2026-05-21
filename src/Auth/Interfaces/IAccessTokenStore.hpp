@@ -4,7 +4,7 @@
 #include <optional>
 #include <string>
 
-#include <Utils/Types.hpp>
+#include <Protocol/Types.hpp>
 
 #include <Auth/Types/AccessRecord.hpp>
 
@@ -16,6 +16,6 @@ public:
     virtual void save(const std::string &accessToken, AccessRecord record) = 0;
     virtual std::optional<AccessRecord> find(const std::string &accessToken) const = 0;
     virtual void remove(const std::string &accessToken) = 0;
-    virtual void removeAllForUser(UserId userId) = 0;
+    virtual void removeAllForUser(protocol::UserId userId) = 0;
     virtual unsigned removeExpired(std::time_t now) = 0;
 };

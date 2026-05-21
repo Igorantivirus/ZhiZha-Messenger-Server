@@ -27,7 +27,7 @@ public:
         return std::nullopt;
     }
 
-    std::optional<User> findUserById(const UserId id) const override
+    std::optional<User> findUserById(const protocol::UserId id) const override
     {
         SQLite::Statement query(*db_, SELECT_BY_ID.data());
         query.bind(1, static_cast<int64_t>(id)); // UserId = uint64_t, bind ожидает int64_t
@@ -37,7 +37,7 @@ public:
         return std::nullopt;
     }
 
-    UserId create(const std::string &username, const std::string &displayName, const std::string &passwordHash) override
+    protocol::UserId create(const std::string &username, const std::string &displayName, const std::string &passwordHash) override
     {
         const std::int64_t now = static_cast<int64_t>(std::time(nullptr));
 
@@ -51,7 +51,7 @@ public:
         return db_->getLastInsertRowid(); // возвращает rowid (он же id)
     }
 
-    bool updateUsername(const UserId id, const std::string newUsername) override
+    bool updateUsername(const protocol::UserId id, const std::string newUsername) override
     {
         SQLite::Statement stmt(*db_, UPDATE_USERNAME_COMMAND.data());
         stmt.bind(1, newUsername);
@@ -60,7 +60,7 @@ public:
         return stmt.exec() > 0;
     }
 
-    bool updatePasswordHash(const UserId id, const std::string newPasswordHash) override
+    bool updatePasswordHash(const protocol::UserId id, const std::string newPasswordHash) override
     {
         SQLite::Statement stmt(*db_, UPDATE_PASSWORD_HASH_COMMAND.data());
         stmt.bind(1, newPasswordHash);

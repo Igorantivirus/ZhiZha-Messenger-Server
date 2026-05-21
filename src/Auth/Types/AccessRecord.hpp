@@ -2,10 +2,10 @@
 
 #include <ctime>
 
-#include <Utils/Types.hpp>
+#include <Protocol/Types.hpp>
 
 struct AccessRecord
 {
-    UserId userId;
+    protocol::UserId userId;
     std::time_t expiresAt;
 };

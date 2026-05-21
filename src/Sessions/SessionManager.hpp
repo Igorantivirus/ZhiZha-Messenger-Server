@@ -10,7 +10,7 @@
 #include <crow/crow.h>
 
 #include <Sessions/Session.hpp>
-#include <Utils/Types.hpp>
+#include <Protocol/Types.hpp>
 
 // Реестр живых WebSocket-подключений. Потокобезопасен: Crow обрабатывает
 // соединения в нескольких потоках, поэтому каждый доступ под мьютексом.
@@ -21,7 +21,7 @@ class SessionManager
 {
 public:
     // Регистрирует подключение после успешного handshake. Вызывается из onopen.
-    void add(crow::websocket::connection &conn, UserId userId)
+    void add(crow::websocket::connection &conn, protocol::UserId userId)
     {
         std::unique_lock lock(mtx_);
         byConnection_.insert_or_assign(&conn, Session{.userId = userId, .connection = &conn});
@@ -36,7 +36,7 @@ public:
         if (it == byConnection_.end())
             return;
 
-        const UserId userId = it->second.userId;
+        const protocol::UserId userId = it->second.userId;
         byConnection_.erase(it);
 
         auto userIt = byUser_.find(userId);
@@ -48,7 +48,7 @@ public:
     }
 
     // userId владельца подключения, если оно зарегистрировано.
-    std::optional<UserId> userIdOf(crow::websocket::connection &conn) const
+    std::optional<protocol::UserId> userIdOf(crow::websocket::connection &conn) const
     {
         std::shared_lock lock(mtx_);
         auto it = byConnection_.find(&conn);
@@ -59,7 +59,7 @@ public:
 
     // Отправляет текст всем подключениям пользователя. Возвращает число адресатов.
     // Пригодится ChatService для доставки сообщений.
-    std::size_t sendToUser(UserId userId, const std::string &text) const
+    std::size_t sendToUser(protocol::UserId userId, const std::string &text) const
     {
         // Копируем указатели под локом, send_text дёргаем уже без него,
         // чтобы не держать мьютекс на время сетевой операции.
@@ -76,7 +76,7 @@ public:
         return targets.size();
     }
 
-    bool isOnline(UserId userId) const
+    bool isOnline(protocol::UserId userId) const
     {
         std::shared_lock lock(mtx_);
         return byUser_.contains(userId);
@@ -85,5 +85,5 @@ public:
 private:
     mutable std::shared_mutex mtx_;
     std::unordered_map<crow::websocket::connection *, Session> byConnection_;
-    std::unordered_map<UserId, std::unordered_set<crow::websocket::connection *>> byUser_;
+    std::unordered_map<protocol::UserId, std::unordered_set<crow::websocket::connection *>> byUser_;
 };
