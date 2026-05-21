@@ -30,7 +30,10 @@ set_target_properties(${EXECUTABLE_NAME} PROPERTIES
     CXX_EXTENSIONS OFF
 )
 
-target_compile_definitions(${EXECUTABLE_NAME} PUBLIC CROW_USE_BOOST=1)
+target_compile_definitions(${EXECUTABLE_NAME} PUBLIC
+    CROW_USE_BOOST=1
+    ZHI_ZHA_SERVER=1
+)
 
 target_include_directories(${EXECUTABLE_NAME} PUBLIC ${INCLUDE_PATHS})
 
