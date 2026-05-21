@@ -6,24 +6,44 @@
 #include "Auth.hpp"
 #include "Ws.hpp"
 
+namespace protocol
+{
+
+template <class DtoType>
+bool parseJsonTo(const std::string &str, DtoType &dto)
+{
+    try
+    {
+        nlohmann::json json = nlohmann::json::parse(str);
+        json.get_to(dto);
+        return true;
+    }
+    catch (...)
+    {
+        return false;
+    }
+}
+
+} // namespace protocol
+
 namespace protocol::api
 {
 // camelCase-строки в JSON. unknown — первым, поэтому неизвестная строка
 // при десериализации схлопывается именно в него.
 NLOHMANN_JSON_SERIALIZE_ENUM(ErrorCode,
-{
-    {ErrorCode::unknown,             "unknown"            },
-    {ErrorCode::internalError,       "internalError"      },
-    {ErrorCode::invalidFormat,       "invalidFormat"      },
-    {ErrorCode::unauthorized,        "unauthorized"       },
-    {ErrorCode::usernameTaken,       "usernameTaken"      },
-    {ErrorCode::invalidCredentials,  "invalidCredentials" },
-    {ErrorCode::weakPassword,        "weakPassword"       },
-    {ErrorCode::usernameValidation,  "usernameValidation" },
-    {ErrorCode::invalidToken,        "invalidToken"       },
-    {ErrorCode::invalidRefreshToken, "invalidRefreshToken"},
-    {ErrorCode::unknownMessageType,  "unknownMessageType" },
-    {ErrorCode::notFound,            "notFound"           },
+                             {
+                                 {ErrorCode::unknown,             "unknown"            },
+                                 {ErrorCode::internalError,       "internalError"      },
+                                 {ErrorCode::invalidFormat,       "invalidFormat"      },
+                                 {ErrorCode::unauthorized,        "unauthorized"       },
+                                 {ErrorCode::usernameTaken,       "usernameTaken"      },
+                                 {ErrorCode::invalidCredentials,  "invalidCredentials" },
+                                 {ErrorCode::weakPassword,        "weakPassword"       },
+                                 {ErrorCode::usernameValidation,  "usernameValidation" },
+                                 {ErrorCode::invalidToken,        "invalidToken"       },
+                                 {ErrorCode::invalidRefreshToken, "invalidRefreshToken"},
+                                 {ErrorCode::unknownMessageType,  "unknownMessageType" },
+                                 {ErrorCode::notFound,            "notFound"           },
 })
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ErrorResponse, code, message)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(InfoResponse, serverName, version, wsEndpoint, accessTtl, refreshTtl)
@@ -41,17 +61,17 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AuthSuccessResponse, userId, accessToken, ref
 namespace protocol::ws
 {
 NLOHMANN_JSON_SERIALIZE_ENUM(WsMessageType,
-{
-    {WsMessageType::unknown,     "unknown"    },
-    {WsMessageType::ping,        "ping"       },
-    {WsMessageType::pong,        "pong"       },
-    {WsMessageType::error,       "error"      },
-    {WsMessageType::sendMessage, "sendMessage"},
-    {WsMessageType::createRoom,  "createRoom" },
-    {WsMessageType::leaveRoom,   "leaveRoom"  },
-    {WsMessageType::newMessage,  "newMessage" },
-    {WsMessageType::userLeft,    "userLeft"   },
-    {WsMessageType::roomCreated, "roomCreated"},
+                             {
+                                 {WsMessageType::unknown,     "unknown"    },
+                                 {WsMessageType::ping,        "ping"       },
+                                 {WsMessageType::pong,        "pong"       },
+                                 {WsMessageType::error,       "error"      },
+                                 {WsMessageType::sendMessage, "sendMessage"},
+                                 {WsMessageType::createRoom,  "createRoom" },
+                                 {WsMessageType::leaveRoom,   "leaveRoom"  },
+                                 {WsMessageType::newMessage,  "newMessage" },
+                                 {WsMessageType::userLeft,    "userLeft"   },
+                                 {WsMessageType::roomCreated, "roomCreated"},
 })
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Envelope, type)
@@ -74,22 +94,22 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomCreatedEvent, type, roomId)
 namespace protocol
 {
 NLOHMANN_JSON_SERIALIZE_ENUM(RoomKind,
-{
-    {RoomKind::Direct,  "direct" },
-    {RoomKind::Group,   "group"  },
-    {RoomKind::Channel, "channel"},
+                             {
+                                 {RoomKind::Direct,  "direct" },
+                                 {RoomKind::Group,   "group"  },
+                                 {RoomKind::Channel, "channel"},
 })
 NLOHMANN_JSON_SERIALIZE_ENUM(JoinPolicy,
-{
-    {JoinPolicy::Closed,   "closed"  },
-    {JoinPolicy::ByMember, "byMember"},
-    {JoinPolicy::ByAdmin,  "byAdmin" },
-    {JoinPolicy::Public,   "public"  },
+                             {
+                                 {JoinPolicy::Closed,   "closed"  },
+                                 {JoinPolicy::ByMember, "byMember"},
+                                 {JoinPolicy::ByAdmin,  "byAdmin" },
+                                 {JoinPolicy::Public,   "public"  },
 })
 NLOHMANN_JSON_SERIALIZE_ENUM(WritePolicy,
-{
-    {WritePolicy::Everyone,   "everyone"  },
-    {WritePolicy::AdminsOnly, "adminsOnly"},
+                             {
+                                 {WritePolicy::Everyone,   "everyone"  },
+                                 {WritePolicy::AdminsOnly, "adminsOnly"},
 })
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomInfo, kind, joinPolicy, writePolicy)
 } // namespace protocol
