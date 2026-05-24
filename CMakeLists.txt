@@ -42,3 +42,7 @@ target_link_libraries(${EXECUTABLE_NAME} PUBLIC
     Threads::Threads
     SQLiteCpp
 )
+
+if(MSVC)
+    target_compile_options(${EXECUTABLE_NAME} PRIVATE /bigobj)
+endif()
