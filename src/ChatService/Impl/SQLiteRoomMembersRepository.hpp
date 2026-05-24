@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ChatService/Types/MemberRole.hpp"
+#include "magic_enum/magic_enum.hpp"
 #include <SQLiteCpp/SQLiteCpp.h>
 
 #include <memory>
@@ -17,8 +19,8 @@ public:
         db_->exec(CREATE_INDEX_USER_COMMAND.data());
     }
 
-    void add(const RoomId roomId,
-             const UserId userId,
+    void add(const protocol::RoomId roomId,
+             const protocol::UserId userId,
              const MemberRole role,
              std::time_t joinedAt) override
     {
@@ -31,7 +33,7 @@ public:
         insert.exec();
     }
 
-    void remove(const RoomId roomId, const UserId userId) override
+    void remove(const protocol::RoomId roomId, const protocol::UserId userId) override
     {
         SQLite::Statement stmt(*db_, DELETE_MEMBER_COMMAND.data());
         stmt.bind(1, static_cast<std::int64_t>(roomId));
@@ -39,7 +41,7 @@ public:
         stmt.exec();
     }
 
-    std::vector<RoomMember> membersOf(const RoomId roomId) const override
+    std::vector<RoomMember> membersOf(const protocol::RoomId roomId) const override
     {
         SQLite::Statement query(*db_, SELECT_MEMBERS_OF_ROOM.data());
         query.bind(1, static_cast<std::int64_t>(roomId));
@@ -50,7 +52,7 @@ public:
         return result;
     }
 
-    bool isMember(const RoomId roomId, UserId userId) const override
+    bool isMember(const protocol::RoomId roomId, protocol::UserId userId) const override
     {
         // Лёгкий запрос — только проверка существования, без полной выборки полей
         SQLite::Statement query(*db_, EXISTS_MEMBER_COMMAND.data());
@@ -59,7 +61,7 @@ public:
         return query.executeStep(); // true если строка нашлась
     }
 
-    std::optional<RoomMember> get(const RoomId roomId, const UserId userId) const override
+    std::optional<RoomMember> get(const protocol::RoomId roomId, const protocol::UserId userId) const override
     {
         SQLite::Statement query(*db_, SELECT_MEMBER_COMMAND.data());
         query.bind(1, static_cast<std::int64_t>(roomId));
@@ -69,9 +71,9 @@ public:
         return std::nullopt;
     }
 
-    void updateLastRead(const RoomId roomId,
-                        const UserId userId,
-                        const MessageId lastReadMessageId) override
+    void updateLastRead(const protocol::RoomId roomId,
+                        const protocol::UserId userId,
+                        const protocol::MessageId lastReadMessageId) override
     {
         // Важный момент: используем MAX, чтобы не сдвигать позицию назад.
         // Если клиент по ошибке прислал старый id — позиция не уменьшится.
@@ -86,16 +88,23 @@ private:
     static RoomMember rowToMember(SQLite::Statement &query)
     {
         RoomMember m;
-        m.roomId = static_cast<RoomId>(query.getColumn(0).getInt64());
-        m.userId = static_cast<UserId>(query.getColumn(1).getInt64());
+        m.roomId = static_cast<protocol::RoomId>(query.getColumn(0).getInt64());
+        m.userId = static_cast<protocol::UserId>(query.getColumn(1).getInt64());
         m.role = memberRoleFromString(query.getColumn(2).getString());
         m.joinedAt = static_cast<std::time_t>(query.getColumn(3).getInt64());
-        m.lastReadMessageId = static_cast<MessageId>(query.getColumn(4).getInt64());
+        m.lastReadMessageId = static_cast<protocol::MessageId>(query.getColumn(4).getInt64());
         return m;
     }
 
-    static std::string memberRoleToString(MemberRole r);
-    static MemberRole memberRoleFromString(const std::string &s);
+    static std::string memberRoleToString(MemberRole r)
+    {
+        return std::string(magic_enum::enum_name(r));
+    }
+    static MemberRole memberRoleFromString(const std::string &s)
+    {
+        auto casted = magic_enum::enum_cast<MemberRole>(s);
+        return casted ? casted.value() : MemberRole::Member;
+    }
 
     std::shared_ptr<SQLite::Database> db_;
 
@@ -105,7 +114,7 @@ private:
         "CREATE TABLE IF NOT EXISTS roomMembers("
         "roomId             INTEGER NOT NULL,"
         "userId             INTEGER NOT NULL,"
-        "role               TEXT    NOT NULL CHECK (role IN ('owner','admin','member')),"
+        "role               TEXT    NOT NULL CHECK (role IN ('Owner','Admin','Member')),"
         "joinedAt           INTEGER NOT NULL,"
         "lastReadMessageId  INTEGER NOT NULL DEFAULT 0,"
         // Составной PK: пара (комната, юзер) уникальна — нельзя дважды добавить

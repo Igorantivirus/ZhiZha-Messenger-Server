@@ -1,10 +1,12 @@
 #pragma once
 
-#include <SQLiteCpp/SQLiteCpp.h>
-
 #include <ctime>
 #include <memory>
 #include <string_view>
+
+#include <SQLiteCpp/SQLiteCpp.h>
+
+#include <Protocol/Types.hpp>
 
 #include <ChatService/Interfaces/IMessageRepository.hpp>
 
@@ -18,9 +20,9 @@ public:
         db_->exec(CREATE_INDEX_COMMAND.data());
     }
 
-    MessageId create(const RoomId roomId,
-                     const UserId fromUserId,
-                     const std::string &text) override
+    protocol::MessageId create(const protocol::RoomId roomId,
+                               const protocol::UserId fromUserId,
+                               const std::string &text) override
     {
         // createdAt берём прямо здесь — это серверное время, не клиентское
         const std::int64_t createdAt = static_cast<std::int64_t>(std::time(nullptr));
@@ -31,10 +33,10 @@ public:
         insert.bind(3, text);
         insert.bind(4, createdAt);
         insert.exec();
-        return static_cast<MessageId>(db_->getLastInsertRowid());
+        return static_cast<protocol::MessageId>(db_->getLastInsertRowid());
     }
 
-    std::optional<Message> findById(const MessageId id) const override
+    std::optional<Message> findById(const protocol::MessageId id) const override
     {
         SQLite::Statement query(*db_, SELECT_BY_ID.data());
         query.bind(1, static_cast<std::int64_t>(id));
@@ -43,8 +45,8 @@ public:
         return std::nullopt;
     }
 
-    std::vector<Message> findAfter(const RoomId roomId,
-                                   const MessageId afterId,
+    std::vector<Message> findAfter(const protocol::RoomId roomId,
+                                   const protocol::MessageId afterId,
                                    const unsigned limit) const override
     {
         SQLite::Statement query(*db_, SELECT_AFTER.data());
@@ -59,8 +61,8 @@ public:
         return result;
     }
 
-    std::vector<Message> findBefore(const RoomId roomId,
-                                    const MessageId beforeId,
+    std::vector<Message> findBefore(const protocol::RoomId roomId,
+                                    const protocol::MessageId beforeId,
                                     const unsigned limit) const override
     {
         SQLite::Statement query(*db_, SELECT_BEFORE.data());
@@ -75,7 +77,20 @@ public:
         return result;
     }
 
-    void removeAllInRoom(const RoomId roomId) override
+    std::vector<Message> findLatest(const protocol::RoomId roomId, const unsigned limit) const override
+    {
+        SQLite::Statement query(*db_, SELECT_LATEST.data());
+        query.bind(1, static_cast<std::int64_t>(roomId));
+        query.bind(2, static_cast<std::int64_t>(limit));
+
+        std::vector<Message> result;
+        result.reserve(limit);
+        while (query.executeStep())
+            result.push_back(rowToMessage(query));
+        return result;
+    }
+
+    void removeAllInRoom(const protocol::RoomId roomId) override
     {
         SQLite::Statement stmt(*db_, DELETE_ALL_IN_ROOM_COMMAND.data());
         stmt.bind(1, static_cast<std::int64_t>(roomId));
@@ -86,9 +101,9 @@ private:
     static Message rowToMessage(SQLite::Statement &query)
     {
         Message m;
-        m.id = static_cast<MessageId>(query.getColumn(0).getInt64());
-        m.roomId = static_cast<RoomId>(query.getColumn(1).getInt64());
-        m.fromUserId = static_cast<UserId>(query.getColumn(2).getInt64());
+        m.id = static_cast<protocol::MessageId>(query.getColumn(0).getInt64());
+        m.roomId = static_cast<protocol::RoomId>(query.getColumn(1).getInt64());
+        m.fromUserId = static_cast<protocol::UserId>(query.getColumn(2).getInt64());
         m.text = query.getColumn(3).getString();
         m.createdAt = static_cast<std::time_t>(query.getColumn(4).getInt64());
         return m;
@@ -142,4 +157,13 @@ private:
 
     static constexpr std::string_view DELETE_ALL_IN_ROOM_COMMAND =
         "DELETE FROM messages WHERE roomId = ?";
+
+    // Последние limit сообщений комнаты по убыванию id.
+    // Используется при первой загрузке: клиент не знает курсора.
+    static constexpr std::string_view SELECT_LATEST =
+        "SELECT id, roomId, fromUserId, text, createdAt "
+        "FROM messages "
+        "WHERE roomId = ? "
+        "ORDER BY id DESC "
+        "LIMIT ?";
 };

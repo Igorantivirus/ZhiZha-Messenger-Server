@@ -1,5 +1,6 @@
 #pragma once
 
+#include "magic_enum/magic_enum.hpp"
 #include <SQLiteCpp/SQLiteCpp.h>
 
 #include <memory>
@@ -16,9 +17,9 @@ public:
         db_->exec(CREATE_TABLE_COMMAND.data());
     }
 
-    RoomId create(const std::string &name,
-                  const info::RoomInfo info,
-                  const std::time_t createdAt) override
+    protocol::RoomId create(const std::string &name,
+                            const protocol::rooms::RoomInfo info,
+                            const std::time_t createdAt) override
     {
         SQLite::Statement insert(*db_, INSERT_ROOM_COMMAND.data());
         insert.bind(1, name);
@@ -27,10 +28,10 @@ public:
         insert.bind(4, writePolicyToString(info.writePolicy));
         insert.bind(5, static_cast<std::int64_t>(createdAt));
         insert.exec();
-        return static_cast<RoomId>(db_->getLastInsertRowid());
+        return static_cast<protocol::RoomId>(db_->getLastInsertRowid());
     }
 
-    std::optional<Room> findById(RoomId id) const override
+    std::optional<Room> findById(protocol::RoomId id) const override
     {
         SQLite::Statement query(*db_, SELECT_BY_ID.data());
         query.bind(1, static_cast<std::int64_t>(id));
@@ -39,7 +40,7 @@ public:
         return std::nullopt;
     }
 
-    std::vector<Room> findForUser(const UserId userId) const override
+    std::vector<Room> findForUser(const protocol::UserId userId) const override
     {
         // JOIN с roomMembers — это и есть причина, по которой метод тут:
         // нам нужны полные Room-объекты, а не только roomId.
@@ -52,7 +53,7 @@ public:
         return result;
     }
 
-    void remove(const RoomId id) override
+    void remove(const protocol::RoomId id) override
     {
         SQLite::Statement stmt(*db_, DELETE_ROOM_COMMAND.data());
         stmt.bind(1, static_cast<std::int64_t>(id));
@@ -65,7 +66,7 @@ private:
     static Room rowToRoom(SQLite::Statement &query)
     {
         Room room;
-        room.id = static_cast<RoomId>(query.getColumn(0).getInt64());
+        room.id = static_cast<protocol::RoomId>(query.getColumn(0).getInt64());
         room.name = query.getColumn(1).getString();
         room.info.kind = roomKindFromString(query.getColumn(2).getString());
         room.info.joinPolicy = joinPolicyFromString(query.getColumn(3).getString());
@@ -78,12 +79,33 @@ private:
     // Эти функции должны жить где-то в Types/RoomInfo.hpp или рядом —
     // здесь я предполагаю, что они доступны.
     // Если у тебя они называются иначе или enum'ы хранятся как int — поправь.
-    static std::string roomKindToString(info::RoomKind k);
-    static info::RoomKind roomKindFromString(const std::string &s);
-    static std::string joinPolicyToString(info::JoinPolicy p);
-    static info::JoinPolicy joinPolicyFromString(const std::string &s);
-    static std::string writePolicyToString(info::WritePolicy p);
-    static info::WritePolicy writePolicyFromString(const std::string &s);
+    static std::string roomKindToString(protocol::rooms::RoomKind k)
+    {
+        return std::string(magic_enum::enum_name(k));
+    }
+    static protocol::rooms::RoomKind roomKindFromString(const std::string &s)
+    {
+        auto casted = magic_enum::enum_cast<protocol::rooms::RoomKind>(s);
+        return casted ? casted.value() : protocol::rooms::RoomKind::Group;
+    }
+    static std::string joinPolicyToString(protocol::rooms::JoinPolicy p)
+    {
+        return std::string(magic_enum::enum_name(p));
+    }
+    static protocol::rooms::JoinPolicy joinPolicyFromString(const std::string &s)
+    {
+        auto casted = magic_enum::enum_cast<protocol::rooms::JoinPolicy>(s);
+        return casted ? casted.value() : protocol::rooms::JoinPolicy::Closed;
+    }
+    static std::string writePolicyToString(protocol::rooms::WritePolicy p)
+    {
+        return std::string(magic_enum::enum_name(p));
+    }
+    static protocol::rooms::WritePolicy writePolicyFromString(const std::string &s)
+    {
+        auto casted = magic_enum::enum_cast<protocol::rooms::WritePolicy>(s);
+        return casted ? casted.value() : protocol::rooms::WritePolicy::AdminsOnly;
+    }
 
     std::shared_ptr<SQLite::Database> db_;
 
@@ -93,9 +115,9 @@ private:
         "CREATE TABLE IF NOT EXISTS rooms("
         "id          INTEGER PRIMARY KEY AUTOINCREMENT,"
         "name        TEXT    NOT NULL,"
-        "kind        TEXT    NOT NULL CHECK (kind IN ('direct','group','channel')),"
-        "joinPolicy  TEXT    NOT NULL CHECK (joinPolicy IN ('closed','byMember','byAdmin','public')),"
-        "writePolicy TEXT    NOT NULL CHECK (writePolicy IN ('everyone','adminsOnly')),"
+        "kind        TEXT    NOT NULL CHECK (kind IN ('Direct','Group','Channel')),"
+        "joinPolicy  TEXT    NOT NULL CHECK (joinPolicy IN ('Closed','ByMember','ByAdmin','Public')),"
+        "writePolicy TEXT    NOT NULL CHECK (writePolicy IN ('Everyone','AdminsOnly')),"
         "createdAt   INTEGER NOT NULL"
         ")";
 
