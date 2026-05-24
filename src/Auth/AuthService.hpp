@@ -83,6 +83,11 @@ public:
         return tokens_.validateAccess(accessToken);
     }
 
+    const IUserRepository &getUserRepository() const
+    {
+        return users_;
+    }
+
 private:
     IPasswordHasher &hasher_;
     IUserRepository &users_;
