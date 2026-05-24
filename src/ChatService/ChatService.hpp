@@ -3,8 +3,10 @@
 #include <expected>
 
 #include <Utils/Time.hpp>
-#include <Utils/Types.hpp>
 
+#include <Protocol/Parsing.hpp>
+#include <Protocol/Rooms.hpp>
+#include <Protocol/Types.hpp>
 #include <Protocol/Ws.hpp>
 
 #include <ChatService/Interfaces/IMessageRepository.hpp>
@@ -12,26 +14,138 @@
 #include <ChatService/Interfaces/IRoomRepository.hpp>
 
 #include <Sessions/SessionManager.hpp>
+#include <optional>
 
 #include "Types/ChatError.hpp"
 #include "Types/MemberRole.hpp"
+#include "Types/MessagePage.hpp"
+#include "Types/Room.hpp"
 #include "Types/RoomMember.hpp"
-#include "nlohmann/json.hpp"
 
 class ChatService
 {
 public:
-    ChatService(IRoomRepository &roomRepo, IMessageRepository &messageRepo, IRoomMembersRepository &roomMembersRepo, SessionManager &sessions)
+    ChatService(IRoomRepository &roomRepo,
+                IMessageRepository &messageRepo,
+                IRoomMembersRepository &roomMembersRepo,
+                SessionManager &sessions,
+                const std::size_t maxMessageSize)
         : roomRepo_(roomRepo),
           messageRepo_(messageRepo),
           roomMembersRepo_(roomMembersRepo),
-          sessions_(sessions)
+          sessions_(sessions),
+          maxMessageSize_(maxMessageSize)
     {
     }
 
-    std::expected<MessageId, ChatError> messageFromUser(
-        const UserId sender,
-        const protocol::ws::SendMessageRequest &request)
+    std::expected<MessagePage, ChatError> getMessages(
+        const protocol::UserId sender,
+        const protocol::RoomId roomId,
+        std::optional<const protocol::MessageId> beforeId,
+        std::optional<const protocol::MessageId> afterId,
+        unsigned limit)
+    {
+        if (!roomMembersRepo_.isMember(roomId, sender))
+            return std::unexpected(ChatError::NotAMember);
+
+        if (limit == 0)
+            limit = 50;
+        if (limit > 100)
+            limit = 100;
+
+        if (afterId)
+        {
+            auto candidates = messageRepo_.findAfter(roomId, *afterId, limit + 1);
+
+            if (candidates.size() > limit)
+            {
+                // Разрыв слишком большой. Возвращаем свежайшие limit.
+                auto latest = messageRepo_.findLatest(roomId, limit);
+                std::reverse(latest.begin(), latest.end()); // DESC → ASC
+                return MessagePage{
+                    .messages = std::move(latest),
+                    .hasMore = true // клиент знает: между afterId и первым из этих — пропуск
+                };
+            }
+            return MessagePage{.messages = std::move(candidates), .hasMore = false};
+        }
+        if (beforeId)
+        {
+            // limit + 1 чтобы знать, есть ли ещё раньше
+            auto messages = messageRepo_.findBefore(roomId, *beforeId, limit + 1);
+            bool hasMore = false;
+            if (messages.size() > limit)
+            {
+                hasMore = true;
+                messages.pop_back(); // выкинуть лишний, он был только для определения hasMore
+            }
+            // findBefore возвращает DESC — переворачиваем в ASC для клиента
+            std::reverse(messages.begin(), messages.end());
+            // Есть ещё старше
+            return MessagePage{.messages = std::move(messages), .hasMore = hasMore};
+        }
+        // Последние limit сообщений
+        auto messages = messageRepo_.findLatest(roomId, limit + 1);
+
+        bool hasMore = false;
+        if (messages.size() > limit)
+        {
+            hasMore = true;
+            messages.pop_back();
+        }
+        // findLatest возвращает DESC — переворачиваем
+        std::reverse(messages.begin(), messages.end());
+        return MessagePage{.messages = std::move(messages), .hasMore = hasMore};
+    }
+
+    std::expected<std::vector<RoomMember>, ChatError> getMembers(const protocol::UserId userId, const protocol::RoomId roomId)
+    {
+        if (!roomMembersRepo_.isMember(roomId, userId))
+            return std::unexpected(ChatError::NotAMember);
+        return roomMembersRepo_.membersOf(roomId);
+    }
+
+    std::optional<ChatError> inviteUser(const protocol::UserId inviter, const protocol::RoomId roomId, const protocol::UserId invited)
+    {
+        // Вместо трёх проверок, что участник, что есть комната и получение пользователя - достаточно две
+        auto room = roomRepo_.findById(roomId);
+        if (!room)
+            return ChatError::RoomNotFound;
+        auto member = roomMembersRepo_.get(roomId, inviter);
+        if (!member)
+            return ChatError::NotAMember;
+
+        if // проверка на возможность приглашения
+            (
+                room->info.joinPolicy == protocol::rooms::JoinPolicy::Closed ||                                                                             // Если нельзя приглашать
+                (room->info.joinPolicy == protocol::rooms::JoinPolicy::ByAdmin && (member->role != MemberRole::Admin && member->role != MemberRole::Owner)) // Если приглашать могут только админы, а приглашающий - не админ и не создатель
+            )
+            return ChatError::PermissionError;
+
+        if (roomMembersRepo_.isMember(roomId, invited))
+            return ChatError::MemberAlready;
+
+        // Все проверки пройдены — фактически добавляем участника.
+        roomMembersRepo_.add(roomId, invited, MemberRole::Member, getCurrentTime());
+        return std::nullopt;
+    }
+
+    std::expected<Room, ChatError> getRoomInfo(const protocol::UserId userId, const protocol::RoomId roomId)
+    {
+        if (!roomMembersRepo_.isMember(roomId, userId))
+            return std::unexpected(ChatError::NotAMember);
+        auto room = roomRepo_.findById(roomId);
+        if (!room)
+            return std::unexpected(ChatError::RoomNotFound);
+        return *room;
+    }
+
+    std::expected<std::vector<Room>, ChatError> getRoomsByUser(const protocol::UserId userId)
+    {
+        return roomRepo_.findForUser(userId);
+    }
+
+    std::expected<protocol::MessageId, ChatError> messageFromUser(const protocol::UserId sender, const protocol::ws::SendMessageRequest &request)
     {
         // 1. Валидация текста
         if (request.text.empty())
@@ -50,11 +164,12 @@ public:
             return std::unexpected(ChatError::NotAMember);
 
         // 4. Проверка прав на запись
-        if (room->info.writePolicy == info::WritePolicy::AdminsOnly && member->role == MemberRole::Member)
+
+        if (room->info.writePolicy == protocol::rooms::WritePolicy::AdminsOnly && member->role == MemberRole::Member)
             return std::unexpected(ChatError::WriteForbidden);
 
         // 5. Сохраняем
-        const MessageId msgId = messageRepo_.create(request.roomId, sender, request.text);
+        const protocol::MessageId msgId = messageRepo_.create(request.roomId, sender, request.text);
 
         const std::time_t now = getCurrentTime();
 
@@ -83,12 +198,10 @@ public:
         return msgId;
     }
 
-    std::expected<RoomId, ChatError> createRoom(
-        const UserId sender,
-        const protocol::ws::CreateRoomRequest &request)
+    std::expected<protocol::RoomId, ChatError> createRoom(const protocol::UserId sender, const protocol::rooms::CreateRoomRequest &request)
     {
         // Валидация для Direct
-        if (request.roomInfo.kind == info::RoomKind::Direct)
+        if (request.roomInfo.kind == protocol::rooms::RoomKind::Direct)
         {
             if (request.invitedUsers.size() != 1)
                 return std::unexpected(ChatError::InvalidDirectRoom);
@@ -96,14 +209,14 @@ public:
         }
 
         // Валидация имени (для Direct можно пустое)
-        if (request.roomInfo.kind != info::RoomKind::Direct && request.roomName.empty())
+        if (request.roomInfo.kind != protocol::rooms::RoomKind::Direct && request.roomName.empty())
             return std::unexpected(ChatError::EmptyRoomName);
 
         const std::time_t now = getCurrentTime();
-        const RoomId roomId = roomRepo_.create(request.roomName, request.roomInfo, now);
+        const protocol::RoomId roomId = roomRepo_.create(request.roomName, request.roomInfo, now);
 
         roomMembersRepo_.add(roomId, sender, MemberRole::Owner, now);
-        for (const UserId invitedId : request.invitedUsers)
+        for (const protocol::UserId invitedId : request.invitedUsers)
         {
             if (invitedId == sender)
                 continue; // не добавляем себя дважды
@@ -111,21 +224,20 @@ public:
         }
 
         // Уведомить всех приглашённых, кто онлайн
-        protocol::ws::RoomCreatedEvent event{.roomId = roomId,
-                                             /* + room info */};
+        protocol::ws::RoomCreatedEvent event{.roomId = roomId};
         const std::string payload = nlohmann::json(event).dump();
-        for (const UserId invitedId : request.invitedUsers)
+        for (const protocol::UserId invitedId : request.invitedUsers)
             sessions_.sendToUser(invitedId, payload);
 
         return roomId;
     }
 
-    void leaveRoom(const UserId sender, const protocol::ws::LeaveRoomRequest &request)
+    std::optional<ChatError> leaveRoom(const protocol::UserId sender, const protocol::RoomId roomId)
     {
         // Проверяем, что юзер вообще состоял в комнате
-        auto member = roomMembersRepo_.get(request.roomId, sender);
+        auto member = roomMembersRepo_.get(roomId, sender);
         if (!member)
-            return; // и без того не в комнате — нечего делать
+            return ChatError::NotAMember; // и без того не в комнате — нечего делать
 
         // Особая обработка для Owner'а
         if (member->role == MemberRole::Owner)
@@ -135,9 +247,9 @@ public:
             // Я бы передал права на самого старого admin'а, либо запретил.
             // Здесь — пример с передачей или удалением комнаты.
 
-            auto members = roomMembersRepo_.membersOf(request.roomId);
+            auto members = roomMembersRepo_.membersOf(roomId);
             // Ищем кого-нибудь, кроме owner'а
-            std::optional<UserId> newOwner;
+            std::optional<protocol::UserId> newOwner;
             for (const auto &m : members)
             {
                 if (m.userId != sender)
@@ -150,8 +262,8 @@ public:
             if (!newOwner)
             {
                 // Owner один в комнате — просто удаляем комнату
-                roomRepo_.remove(request.roomId); // CASCADE уберёт всё остальное
-                return;
+                roomRepo_.remove(roomId); // CASCADE уберёт всё остальное
+                return std::nullopt;
             }
 
             // Передаём права (если у тебя есть updateRole — используй его)
@@ -160,23 +272,24 @@ public:
         }
 
         // Убираем самого юзера
-        roomMembersRepo_.remove(request.roomId, sender);
+        roomMembersRepo_.remove(roomId, sender);
 
         // Уведомляем остальных
         protocol::ws::UserLeftEvent event{
-            .roomId = request.roomId,
+            .roomId = roomId,
             .userId = sender};
         const std::string payload = nlohmann::json(event).dump();
 
-        auto remaining = roomMembersRepo_.membersOf(request.roomId);
+        auto remaining = roomMembersRepo_.membersOf(roomId);
         if (remaining.empty())
         {
             // Никого не осталось — удаляем комнату полностью
-            roomRepo_.remove(request.roomId); // CASCADE подтянет messages
-            return;
+            roomRepo_.remove(roomId); // CASCADE подтянет messages
+            return std::nullopt;
         }
         for (const auto &m : remaining)
             sessions_.sendToUser(m.userId, payload);
+        return std::nullopt;
     }
 
 private:
@@ -185,4 +298,6 @@ private:
     IRoomMembersRepository &roomMembersRepo_;
 
     SessionManager &sessions_;
+
+    const std::size_t maxMessageSize_;
 };
