@@ -9,17 +9,31 @@ namespace protocol
 // так и в любой момент по WebSocket.
 enum class ErrorCode : std::uint8_t
 {
-    unknown,             // нераспознанная ошибка (fallback при десериализации)
-    internalError,       // что-то упало на сервере
-    invalidFormat,       // тело запроса / сообщение не распарсилось
-    unauthorized,        // нет/протух access-токен
-    usernameTaken,       // ник занят
-    invalidCredentials,  // неверный логин или пароль
-    weakPassword,        // пароль не прошёл валидацию
-    usernameValidation,  // ник не прошёл валидацию
-    invalidToken,        // access-токен невалиден
-    invalidRefreshToken, // refresh-токен невалиден или истёк
-    unknownMessageType,  // WS: неизвестный type
-    notFound             // ресурс не найден
+    Unknown,            // нераспознанная ошибка (fallback при десериализации)
+    InternalError,      // что-то упало на сервере
+    InvalidFormat,      // тело запроса / сообщение не распарсилось
+    NotFound,           // ресурс не найден
+    Forbidden,          // действие запрещено политикой/правами
+    UnknownMessageType, // WS: неизвестный type
+
+    // === Auth-specific ===
+    InvalidRefreshToken, // refresh-токен невалиден или истёк
+    InvalidToken,        // access-токен невалиден
+    Unauthorized,        // нет/протух access-токен
+    UsernameTaken,       // ник занят
+    UsernameValidation,  // ник не прошёл валидацию
+    InvalidCredentials,  // неверный логин или пароль
+    WeakPassword,        // пароль не прошёл валидацию
+
+    // === Chat-specific ===
+    NotAMember,        // юзер не состоит в комнате
+    WriteForbidden,    // запрещено писать (например, AdminsOnly + role=Member)
+    EmptyMessage,      // пустой текст сообщения
+    MessageTooLong,    // текст превышает лимит
+    RoomNotFound,      // комната не существует
+    InvalidDirectRoom, // некорректные параметры для Direct-комнаты
+    EmptyRoomName,     // у обычной комнаты пустое имя
+    MemberAlready      // пользователь уже состоит в комнате
 };
+
 } // namespace protocol

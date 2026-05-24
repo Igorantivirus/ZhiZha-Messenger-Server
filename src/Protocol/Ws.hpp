@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "RoomInfo.hpp"
+#include "Rooms.hpp"
 
 #include "ErrorCode.hpp"
 #include "Types.hpp"
@@ -17,22 +17,22 @@ namespace protocol::ws
 // ─────────────────────────────────────────────────────────────
 enum class WsMessageType
 {
-    unknown, // нераспознанный тип (fallback при десериализации)
+    Unknown, // нераспознанный тип (fallback при десериализации)
 
-    ping,        // клиент -> сервер: проверка живости
-    sendMessage, // клиент -> сервер: отправить сообщение в чат
-    createRoom,  // клиент -> сервер: создать комнату
-    leaveRoom,   // клиент -> сервер: покинуть комнату
+    Ping,        // клиент -> сервер: проверка живости
+    SendMessage, // клиент -> сервер: отправить сообщение в чат
+    CreateRoom,  // клиент -> сервер: создать комнату
+    LeaveRoom,   // клиент -> сервер: покинуть комнату
 
-    pong,       // сервер -> клиент: ответ на ping
-    error,      // сервер -> клиент: ошибка (может прийти в любой момент)
-    newMessage, // сервер -> клиент: новое сообщение в чате
-    userLeft,   // сервер -> клиент: пользователь покинул комнату
-    roomCreated // сервер -> клиент: создана комната
+    Pong,       // сервер -> клиент: ответ на ping
+    Error,      // сервер -> клиент: ошибка (может прийти в любой момент)
+    NewMessage, // сервер -> клиент: новое сообщение в чате
+    UserLeft,   // сервер -> клиент: пользователь покинул комнату
+    RoomCreated // сервер -> клиент: создана комната
 };
 struct Envelope
 {
-    WsMessageType type = WsMessageType::unknown;
+    WsMessageType type = WsMessageType::Unknown;
 };
 } // namespace protocol::ws
 
@@ -43,27 +43,27 @@ namespace protocol::ws
 {
 struct Ping
 {
-    WsMessageType type = WsMessageType::ping;
+    WsMessageType type = WsMessageType::Ping;
 };
 
 struct SendMessageRequest
 {
-    WsMessageType type = WsMessageType::sendMessage;
+    WsMessageType type = WsMessageType::SendMessage;
     RoomId roomId = 0;
     std::string text;
 };
 
 struct CreateRoomRequest
 {
-    WsMessageType type = WsMessageType::createRoom;
+    WsMessageType type = WsMessageType::CreateRoom;
     std::string roomName;
-    RoomInfo roomInfo;
+    rooms::RoomInfo roomInfo;
     std::vector<UserId> invitedUsers;
 };
 
 struct LeaveRoomRequest
 {
-    WsMessageType type = WsMessageType::leaveRoom;
+    WsMessageType type = WsMessageType::LeaveRoom;
     RoomId roomId = 0;
 };
 } // namespace protocol::ws
@@ -76,19 +76,19 @@ namespace protocol::ws
 
 struct Pong
 {
-    WsMessageType type = WsMessageType::pong;
+    WsMessageType type = WsMessageType::Pong;
 };
 
 struct ErrorMessage
 {
-    WsMessageType type = WsMessageType::error;
-    protocol::ErrorCode code = protocol::ErrorCode::unknown;
+    WsMessageType type = WsMessageType::Error;
+    protocol::ErrorCode code = protocol::ErrorCode::Unknown;
     std::string message;
 };
 
 struct NewMessageEvent
 {
-    WsMessageType type = WsMessageType::newMessage;
+    WsMessageType type = WsMessageType::NewMessage;
     MessageId messageId = 0;
     RoomId roomId = 0;
     UserId senderId = 0;
@@ -98,14 +98,14 @@ struct NewMessageEvent
 
 struct UserLeftEvent
 {
-    WsMessageType type = WsMessageType::userLeft;
+    WsMessageType type = WsMessageType::UserLeft;
     RoomId roomId = 0;
     UserId userId = 0;
 };
 
 struct RoomCreatedEvent
 {
-    WsMessageType type = WsMessageType::roomCreated;
+    WsMessageType type = WsMessageType::RoomCreated;
     RoomId roomId = 0;
 };
 
