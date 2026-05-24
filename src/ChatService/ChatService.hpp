@@ -38,6 +38,68 @@ public:
     {
     }
 
+public: // Actions without answers
+    void onUserConnected(protocol::UserId userId)
+    {
+    }
+    void onUserDisconnected(protocol::UserId userId)
+    {
+    }
+
+    std::expected<protocol::MessageId, ChatError> onSendMessage(const protocol::UserId sender, const protocol::ws::SendMessageRequest &request)
+    {
+        // 1. Валидация текста
+        if (request.text.empty())
+            return std::unexpected(ChatError::EmptyMessage);
+        if (request.text.size() > 1000)
+            return std::unexpected(ChatError::MessageTooLong);
+
+        // 2. Достаём комнату — нужна для проверки writePolicy
+        auto room = roomRepo_.findById(request.roomId);
+        if (!room)
+            return std::unexpected(ChatError::RoomNotFound);
+
+        // 3. Достаём запись участника (одним запросом получаем и факт членства, и роль)
+        auto member = roomMembersRepo_.get(request.roomId, sender);
+        if (!member)
+            return std::unexpected(ChatError::NotAMember);
+
+        // 4. Проверка прав на запись
+
+        if (room->info.writePolicy == protocol::rooms::WritePolicy::AdminsOnly && member->role == MemberRole::Member)
+            return std::unexpected(ChatError::WriteForbidden);
+
+        // 5. Сохраняем
+        const protocol::MessageId msgId = messageRepo_.create(request.roomId, sender, request.text);
+
+        const std::time_t now = getCurrentTime();
+
+        // 6. Формируем event для рассылки (один раз — потом разошлём всем)
+        Message msg{
+            .id = msgId,
+            .roomId = request.roomId,
+            .fromUserId = sender,
+            .text = request.text,
+            .createdAt = now};
+
+        protocol::ws::NewMessageEvent event{
+            .messageId = msgId,
+            .roomId = request.roomId,
+            .senderId = sender,
+            .text = request.text,
+            .createdAt = now};
+
+        const std::string payload = nlohmann::json(event).dump();
+
+        // 7. Рассылаем участникам комнаты, кто онлайн
+        auto members = roomMembersRepo_.membersOf(request.roomId);
+        for (const auto &m : members)
+            sessions_.sendToUser(m.userId, payload);
+
+        return msgId;
+    }
+
+public: // Actions with responses
     std::expected<MessagePage, ChatError> getMessages(
         const protocol::UserId sender,
         const protocol::RoomId roomId,
@@ -145,59 +207,6 @@ public:
         return roomRepo_.findForUser(userId);
     }
 
-    std::expected<protocol::MessageId, ChatError> messageFromUser(const protocol::UserId sender, const protocol::ws::SendMessageRequest &request)
-    {
-        // 1. Валидация текста
-        if (request.text.empty())
-            return std::unexpected(ChatError::EmptyMessage);
-        if (request.text.size() > 1000)
-            return std::unexpected(ChatError::MessageTooLong);
-
-        // 2. Достаём комнату — нужна для проверки writePolicy
-        auto room = roomRepo_.findById(request.roomId);
-        if (!room)
-            return std::unexpected(ChatError::RoomNotFound);
-
-        // 3. Достаём запись участника (одним запросом получаем и факт членства, и роль)
-        auto member = roomMembersRepo_.get(request.roomId, sender);
-        if (!member)
-            return std::unexpected(ChatError::NotAMember);
-
-        // 4. Проверка прав на запись
-
-        if (room->info.writePolicy == protocol::rooms::WritePolicy::AdminsOnly && member->role == MemberRole::Member)
-            return std::unexpected(ChatError::WriteForbidden);
-
-        // 5. Сохраняем
-        const protocol::MessageId msgId = messageRepo_.create(request.roomId, sender, request.text);
-
-        const std::time_t now = getCurrentTime();
-
-        // 6. Формируем event для рассылки (один раз — потом разошлём всем)
-        Message msg{
-            .id = msgId,
-            .roomId = request.roomId,
-            .fromUserId = sender,
-            .text = request.text,
-            .createdAt = now};
-
-        protocol::ws::NewMessageEvent event{
-            .messageId = msgId,
-            .roomId = request.roomId,
-            .senderId = sender,
-            .text = request.text,
-            .createdAt = now};
-
-        const std::string payload = nlohmann::json(event).dump();
-
-        // 7. Рассылаем участникам комнаты, кто онлайн
-        auto members = roomMembersRepo_.membersOf(request.roomId);
-        for (const auto &m : members)
-            sessions_.sendToUser(m.userId, payload);
-
-        return msgId;
-    }
-
     std::expected<protocol::RoomId, ChatError> createRoom(const protocol::UserId sender, const protocol::rooms::CreateRoomRequest &request)
     {
         // Валидация для Direct
@@ -266,7 +275,7 @@ public:
                 return std::nullopt;
             }
 
-            // Передаём права (если у тебя есть updateRole — используй его)
+            // Передаём права
             // TODO:
             // roomMembersRepo_.updateRole(request.roomId, *newOwner, MemberRole::Owner);
         }
