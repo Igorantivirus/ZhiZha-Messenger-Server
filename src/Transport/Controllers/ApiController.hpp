@@ -1,0 +1,47 @@
+#pragma once
+
+#include <crow/crow.h>
+
+#include <Protocol/Api.hpp>
+
+#include <Transport/HttpHelpers.hpp>
+
+class ApiController
+{
+public:
+    ApiController(crow::SimpleApp &app, std::time_t accessTtl, std::time_t refreshTtl)
+        : app_(app), accessTtl_(accessTtl), refreshTtl_(refreshTtl)
+    {
+    }
+
+    void registerRoutes()
+    {
+        CROW_ROUTE(app_, "/api/v1/health")
+        ([]
+        {
+            return crow::response(200, R"({"status":"ok"})");
+        });
+
+        CROW_ROUTE(app_, "/api/v1/info")
+        ([this]
+        {
+            return handleInfo();
+        });
+    }
+
+private:
+    crow::SimpleApp &app_;
+    const std::time_t accessTtl_;
+    const std::time_t refreshTtl_;
+
+    crow::response handleInfo() const
+    {
+        protocol::api::InfoResponse dto{
+            .serverName = "ZhiZha",
+            .version = "0.1.0",
+            .wsEndpoint = "/ws",
+            .accessTtl = accessTtl_,
+            .refreshTtl = refreshTtl_};
+        return HttpHelpers::jsonResponse(200, dto);
+    }
+};
