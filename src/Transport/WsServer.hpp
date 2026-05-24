@@ -8,12 +8,12 @@
 #include <nlohmann/json.hpp>
 
 #include <Auth/AuthService.hpp>
-#include <ChatService/Interfaces/IChatService.hpp>
+#include <ChatService/ChatService.hpp>
 #include <Protocol/Api.hpp>
+#include <Protocol/Parsing.hpp>
+#include <Protocol/Types.hpp>
 #include <Protocol/Ws.hpp>
 #include <Sessions/SessionManager.hpp>
-#include <Protocol/Types.hpp>
-#include <Protocol/Parsing.hpp>
 
 // WebSocket-слой. Аутентификация — в handshake: клиент шлёт
 // Authorization: Bearer <accessToken>. Невалидный токен => подключение
@@ -25,7 +25,7 @@
 class WsServer
 {
 public:
-    WsServer(crow::SimpleApp &app, AuthService &auth, SessionManager &sessions, IChatService *chat = nullptr)
+    WsServer(crow::SimpleApp &app, AuthService &auth, SessionManager &sessions, ChatService &chat)
         : app_(app), auth_(auth), sessions_(sessions), chat_(chat)
     {
     }
@@ -34,21 +34,27 @@ public:
     {
         CROW_WEBSOCKET_ROUTE(app_, "/ws")
             .onaccept([this](const crow::request &req, void **userdata)
-                      { return onAccept(req, userdata); })
-            .onopen([this](crow::websocket::connection &conn)
-                    { onOpen(conn); })
-            .onmessage([this](crow::websocket::connection &conn, const std::string &data, bool isBinary)
-                       { onMessage(conn, data, isBinary); })
-            .onclose([this](crow::websocket::connection &conn, const std::string &reason, uint16_t code)
-                     { onClose(conn, reason, code); });
+        {
+            return onAccept(req, userdata);
+        }).onopen([this](crow::websocket::connection &conn)
+        {
+            onOpen(conn);
+        }).onmessage([this](crow::websocket::connection &conn, const std::string &data, bool isBinary)
+        {
+            onMessage(conn, data, isBinary);
+        }).onclose([this](crow::websocket::connection &conn, const std::string &reason, uint16_t code)
+        {
+            onClose(conn, reason, code);
+        });
     }
 
 private:
     crow::SimpleApp &app_;
     AuthService &auth_;
     SessionManager &sessions_;
-    IChatService *chat_;
+    ChatService &chat_;
 
+private:
     // ─────────────────────────────────────────────────────────────
     // ЖИЗНЕННЫЙ ЦИКЛ СОЕДИНЕНИЯ
     // ─────────────────────────────────────────────────────────────
@@ -70,8 +76,7 @@ private:
     {
         const protocol::UserId userId = userIdOf(conn);
         sessions_.add(conn, userId);
-        if (chat_)
-            chat_->onUserConnected(userId);
+        chat_.onUserConnected(userId);
     }
 
     void onMessage(crow::websocket::connection &conn, const std::string &data, bool isBinary)
@@ -100,8 +105,8 @@ private:
 
     void onClose(crow::websocket::connection &conn, const std::string & /*reason*/, uint16_t /*code*/)
     {
-        if (auto userId = sessions_.userIdOf(conn); userId && chat_)
-            chat_->onUserDisconnected(*userId);
+        if (auto userId = sessions_.userIdOf(conn); userId)
+            chat_.onUserDisconnected(*userId);
 
         sessions_.remove(conn);
 
@@ -110,6 +115,7 @@ private:
         conn.userdata(nullptr);
     }
 
+private:
     // ─────────────────────────────────────────────────────────────
     // ДИСПЕТЧЕРИЗАЦИЯ
     // ─────────────────────────────────────────────────────────────
@@ -135,12 +141,6 @@ private:
 
     void handleSendMessage(crow::websocket::connection &conn, const nlohmann::json &json)
     {
-        if (!chat_)
-        {
-            sendError(conn, protocol::ErrorCode::InternalError, "Chat service is not available yet");
-            return;
-        }
-
         protocol::ws::SendMessageRequest request;
         try
         {
@@ -152,7 +152,7 @@ private:
             return;
         }
 
-        chat_->onSendMessage(userIdOf(conn), request);
+        void(chat_.onSendMessage(userIdOf(conn), request));
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -169,6 +169,7 @@ private:
         return auth_.validateAccess(header.substr(7));
     }
 
+private:
     // userId соединения, гарантированно установленный в onAccept.
     static protocol::UserId userIdOf(crow::websocket::connection &conn)
     {

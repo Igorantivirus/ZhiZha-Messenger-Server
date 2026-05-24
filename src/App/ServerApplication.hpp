@@ -53,7 +53,7 @@ public:
           chatService_(roomRepository_, messageRepository_, roomMembersRepository_, sessionManager_, config.validation.maxMessageSize),
           httpServer_(app_, authService_, chatService_, userRepository_, config_.accessTtl, config_.refreshTtl),
           // chat пока nullptr: ChatService — рабочий черновик, подключим позже.
-          wsServer_(app_, authService_, sessionManager_, nullptr)
+          wsServer_(app_, authService_, sessionManager_, chatService_)
     {
         httpServer_.registerRoutes();
         wsServer_.registerRoutes();
