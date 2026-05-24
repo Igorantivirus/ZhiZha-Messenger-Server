@@ -78,7 +78,7 @@ private:
     {
         if (isBinary)
         {
-            sendError(conn, protocol::ErrorCode::invalidFormat, "Binary frames are not supported");
+            sendError(conn, protocol::ErrorCode::InvalidFormat, "Binary frames are not supported");
             return;
         }
 
@@ -89,12 +89,12 @@ private:
         }
         catch (const std::exception &)
         {
-            sendError(conn, protocol::ErrorCode::invalidFormat, "Message is not valid JSON");
+            sendError(conn, protocol::ErrorCode::InvalidFormat, "Message is not valid JSON");
             return;
         }
 
         // Сначала читаем только дискриминатор, потом — конкретную структуру.
-        const auto type = json.value("type", protocol::ws::WsMessageType::unknown);
+        const auto type = json.value("type", protocol::ws::WsMessageType::Unknown);
         dispatch(conn, type, json);
     }
 
@@ -119,16 +119,16 @@ private:
         using protocol::ws::WsMessageType;
         switch (type)
         {
-        case WsMessageType::ping:
+        case WsMessageType::Ping:
             conn.send_text(nlohmann::json(protocol::ws::Pong{}).dump());
             return;
 
-        case WsMessageType::sendMessage:
+        case WsMessageType::SendMessage:
             handleSendMessage(conn, json);
             return;
 
         default:
-            sendError(conn, protocol::ErrorCode::unknownMessageType, "Unsupported message type");
+            sendError(conn, protocol::ErrorCode::UnknownMessageType, "Unsupported message type");
             return;
         }
     }
@@ -137,7 +137,7 @@ private:
     {
         if (!chat_)
         {
-            sendError(conn, protocol::ErrorCode::internalError, "Chat service is not available yet");
+            sendError(conn, protocol::ErrorCode::InternalError, "Chat service is not available yet");
             return;
         }
 
@@ -148,7 +148,7 @@ private:
         }
         catch (const std::exception &)
         {
-            sendError(conn, protocol::ErrorCode::invalidFormat, "Malformed sendMessage payload");
+            sendError(conn, protocol::ErrorCode::InvalidFormat, "Malformed sendMessage payload");
             return;
         }
 
