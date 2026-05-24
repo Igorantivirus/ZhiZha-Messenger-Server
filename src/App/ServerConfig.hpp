@@ -18,16 +18,26 @@
 // Правила валидации именованных полей. Каждое поле — отдельный StringRule.
 struct ValidationConfig
 {
+    std::size_t maxMessageSize = 1000;
     validation::StringRule username{
-        .minLength = 4, .maxLength = 32, .mustStartWithLetter = true, .allowedSpecialSymbols = "-_"};
+        .minLength = 4,
+        .maxLength = 32,
+        .mustStartWithLetter = true,
+        .allowedSpecialSymbols = "-_"};
     validation::StringRule password{
-        .minLength = 8, .maxLength = 64, .allowedSpecialSymbols = "-_()@#$%^&*!?=+/"};
+        .minLength = 8,
+        .maxLength = 64,
+        .allowedSpecialSymbols = "-_()@#$%^&*!?=+/"};
     validation::StringRule displayName{
-        .minLength = 1, .maxLength = 48, .allowedSpecialSymbols = "-_ ."};
+        .minLength = 1,
+        .maxLength = 48,
+        .allowedSpecialSymbols = "-_ ."};
     validation::StringRule roomName{
-        .minLength = 1, .maxLength = 64, .allowedSpecialSymbols = "-_ ."};
+        .minLength = 1,
+        .maxLength = 64,
+        .allowedSpecialSymbols = "-_ ."};
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ValidationConfig, username, password, displayName, roomName)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ValidationConfig, maxMessageSize, username, password, displayName, roomName)
 
 struct ServerConfig
 {
@@ -51,6 +61,4 @@ struct ServerConfig
         file >> json; // бросит при битом JSON
         return json.get<ServerConfig>();
     }
-    
 };
-
