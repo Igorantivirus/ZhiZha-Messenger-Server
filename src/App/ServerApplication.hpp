@@ -15,6 +15,11 @@
 #include <Auth/Impl/SQLiteRefreshTokenStore.hpp>
 #include <Auth/Impl/SQLiteUserRepository.hpp>
 
+#include <ChatService/ChatService.hpp>
+#include <ChatService/Impl/SQLiteMessageRepository.hpp>
+#include <ChatService/Impl/SQLiteRoomMembersRepository.hpp>
+#include <ChatService/Impl/SQLiteRoomRepository.hpp>
+
 #include <Sessions/SessionManager.hpp>
 #include <Transport/HttpServer.hpp>
 #include <Transport/WsServer.hpp>
@@ -30,16 +35,23 @@ class ServerApplication
 {
 public:
     explicit ServerApplication(ServerConfig config)
-        : config_(std::move(config)),
+        : // База
+          config_(std::move(config)),
           db_(makeDatabase(config_.databaseFile)),
           userRepository_(db_),
+          // for Auth
           refreshStore_(db_),
-          validator_(config_.validation.username, config_.validation.password,
-                     config_.validation.displayName, config_.validation.roomName),
-          tokenService_(refreshStore_, accessStore_,
-                        static_cast<int>(config_.accessTtl), static_cast<int>(config_.refreshTtl)),
+          validator_(config_.validation.username, config_.validation.password, config_.validation.displayName, config_.validation.roomName),
+          tokenService_(refreshStore_, accessStore_, static_cast<int>(config_.accessTtl), static_cast<int>(config_.refreshTtl)),
+          // for chat
+          messageRepository_(db_),
+          roomMembersRepository_(db_),
+          roomRepository_(db_),
+          // доменные шляпы
+          sessionManager_(),
           authService_(passwordHasher_, userRepository_, tokenService_, validator_),
-          httpServer_(app_, authService_, config_.accessTtl, config_.refreshTtl),
+          chatService_(roomRepository_, messageRepository_, roomMembersRepository_, sessionManager_, config.validation.maxMessageSize),
+          httpServer_(app_, authService_, chatService_, userRepository_, config_.accessTtl, config_.refreshTtl),
           // chat пока nullptr: ChatService — рабочий черновик, подключим позже.
           wsServer_(app_, authService_, sessionManager_, nullptr)
     {
@@ -75,9 +87,16 @@ private:
     validation::Validator validator_;
     DummyTokenService tokenService_;
 
+    // ── Хранилища и реализации Chat ──
+
+    SQLiteMessageRepository messageRepository_;
+    SQLiteRoomMembersRepository roomMembersRepository_;
+    SQLiteRoomRepository roomRepository_;
+
     // ── Доменные сервисы ──
-    AuthService authService_;
     SessionManager sessionManager_;
+    AuthService authService_;
+    ChatService chatService_;
 
     // ── Транспорт ──
     HttpServer httpServer_;
