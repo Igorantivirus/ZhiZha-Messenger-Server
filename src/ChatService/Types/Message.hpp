@@ -1,15 +1,15 @@
 #pragma once
 
-#include <string>
 #include <ctime>
+#include <string>
 
-#include <Utils/Types.hpp>
+#include <Protocol/Types.hpp>
 
 struct Message
 {
-    MessageId id;
-    RoomId roomId;
-    UserId fromUserId;
+    protocol::MessageId id;
+    protocol::RoomId roomId;
+    protocol::UserId fromUserId;
     std::string text;
     std::time_t createdAt;
 };

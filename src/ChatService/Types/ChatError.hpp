@@ -10,5 +10,7 @@ enum class ChatError : std::uint8_t
     MessageTooLong,    // Сообщение солишком длинное
     RoomNotFound,      // Комната не найдена
     InvalidDirectRoom, // Ошибка создания лички
-    EmptyRoomName      // пустое имя комнаты
+    EmptyRoomName,     // пустое имя комнаты
+    MemberAlready,     // Уже участник
+    PermissionError    // Нельзя делать из-за ограничения разрешения 
 };

@@ -1,16 +1,15 @@
 #pragma once
 
-#include <string>
 #include <ctime>
+#include <string>
 
-#include <Utils/Types.hpp>
-
-#include "RoomInfo.hpp"
+#include <Protocol/Rooms.hpp>
+#include <Protocol/Types.hpp>
 
 struct Room
 {
-    RoomId id;
+    protocol::RoomId id;
     std::string name;
-    info::RoomInfo info;
+    protocol::rooms::RoomInfo info;
     std::time_t createdAt;
 };
