@@ -2,6 +2,8 @@
 
 #include <crow/crow.h>
 
+#include <Utils/BindMethod.hpp>
+
 #include <Protocol/Api.hpp>
 
 #include <Transport/HttpHelpers.hpp>
@@ -16,23 +18,20 @@ public:
 
     void registerRoutes()
     {
-        CROW_ROUTE(app_, "/api/v1/health")
-        ([]
-        {
-            return crow::response(200, R"({"status":"ok"})");
-        });
-
-        CROW_ROUTE(app_, "/api/v1/info")
-        ([this]
-        {
-            return handleInfo();
-        });
+        CROW_ROUTE(app_, "/api/v1/health")(utils::bindMethod(this, &ApiController::handleHealth));
+        CROW_ROUTE(app_, "/api/v1/info")(utils::bindMethod(this, &ApiController::handleInfo));
     }
 
 private:
     crow::SimpleApp &app_;
     const std::time_t accessTtl_;
     const std::time_t refreshTtl_;
+
+private:
+    crow::response handleHealth() const
+    {
+        return crow::response(200, R"({"status":"ok"})");
+    }
 
     crow::response handleInfo() const
     {

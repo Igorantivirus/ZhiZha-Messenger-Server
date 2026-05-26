@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Utils/BindMethod.hpp"
 #include <ranges>
 
 #include <crow/crow.h>
@@ -22,42 +23,12 @@ public:
 
     void registerRoutes()
     {
-        // Список моих комнат
-        CROW_ROUTE(app_, "/api/v1/rooms").methods("GET"_method)([this](const crow::request &req)
-        {
-            return handleListRooms(req);
-        });
-
-        // Создать комнату
-        CROW_ROUTE(app_, "/api/v1/rooms").methods("POST"_method)([this](const crow::request &req)
-        {
-            return handleCreateRoom(req);
-        });
-
-        // Детали комнаты
-        CROW_ROUTE(app_, "/api/v1/rooms/<uint>")
-        ([this](const crow::request &req, std::uint64_t id)
-        {
-            return handleGetRoom(req, id);
-        });
-
-        // Список участников
-        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/members").methods("GET"_method)([this](const crow::request &req, std::uint64_t id)
-        {
-            return handleGetMembers(req, id);
-        });
-
-        // Пригласить участника
-        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/members").methods("POST"_method)([this](const crow::request &req, std::uint64_t id)
-        {
-            return handleInviteMember(req, id);
-        });
-
-        // Покинуть комнату
-        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/members/me").methods("DELETE"_method)([this](const crow::request &req, std::uint64_t id)
-        {
-            return handleLeaveRoom(req, id);
-        });
+        CROW_ROUTE(app_, "/api/v1/rooms").methods("GET"_method)                     (utils::bindMethod(this, &RoomsController::handleListRooms));    // Список моих комнат
+        CROW_ROUTE(app_, "/api/v1/rooms").methods("POST"_method)                    (utils::bindMethod(this, &RoomsController::handleCreateRoom));   // Создать комнату
+        CROW_ROUTE(app_, "/api/v1/rooms/<uint>")                                    (utils::bindMethod(this, &RoomsController::handleGetRoom));      // Детали комнаты
+        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/members").methods("GET"_method)      (utils::bindMethod(this, &RoomsController::handleGetMembers));   // Список участников
+        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/members").methods("POST"_method)     (utils::bindMethod(this, &RoomsController::handleInviteMember)); // Пригласить участника
+        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/members/me").methods("DELETE"_method)(utils::bindMethod(this, &RoomsController::handleLeaveRoom));    // Покинуть комнату
     }
 
 private:

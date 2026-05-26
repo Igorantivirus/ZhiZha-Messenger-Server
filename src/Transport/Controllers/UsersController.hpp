@@ -2,6 +2,8 @@
 
 #include <crow/crow.h>
 
+#include <Utils/BindMethod.hpp>
+
 #include <Auth/AuthService.hpp>
 #include <Auth/Interfaces/IUserRepository.hpp>
 #include <Protocol/Users.hpp>
@@ -19,23 +21,21 @@ public:
 
     void registerRoutes()
     {
-        CROW_ROUTE(app_, "/api/v1/me")
-        ([this](const crow::request &req)
-        {
-            return handleGetMe(req);
-        });
-
-        CROW_ROUTE(app_, "/api/v1/users/<uint>")
-        ([this](const crow::request &req, std::uint64_t id)
-        {
-            return handleGetUser(req, id);
-        });
+        CROW_ROUTE(app_, "/api/v1/me")(utils::bindMethod(this, &UsersController::handleGetMe));
+        CROW_ROUTE(app_, "/api/v1/users/loop").methods("GET"_method)(utils::bindMethod(this, &UsersController::handleLoop));
+        CROW_ROUTE(app_, "/api/v1/users/<uint>")(utils::bindMethod(this, &UsersController::handleGetUser));
     }
 
 private:
     crow::SimpleApp &app_;
     AuthService &auth_;
     IUserRepository &userRepo_;
+
+private:
+    crow::response handleLoop(const crow::request &req)
+    {
+        return HttpHelpers::notFoundResponse("User not found");
+    }
 
     crow::response handleGetMe(const crow::request &req)
     {

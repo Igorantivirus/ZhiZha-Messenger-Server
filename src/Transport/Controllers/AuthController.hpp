@@ -2,6 +2,7 @@
 
 #include <crow/crow.h>
 
+#include <Utils/BindMethod.hpp>
 #include <Auth/AuthService.hpp>
 #include <Protocol/Auth.hpp>
 #include <Transport/HttpHelpers.hpp>
@@ -16,30 +17,11 @@ public:
 
     void registerRoutes()
     {
-        CROW_ROUTE(app_, "/api/v1/auth/register").methods("POST"_method)([this](const crow::request &req)
-        {
-            return handleRegister(req);
-        });
-
-        CROW_ROUTE(app_, "/api/v1/auth/login").methods("POST"_method)([this](const crow::request &req)
-        {
-            return handleLogin(req);
-        });
-
-        CROW_ROUTE(app_, "/api/v1/auth/refresh").methods("POST"_method)([this](const crow::request &req)
-        {
-            return handleRefresh(req);
-        });
-
-        CROW_ROUTE(app_, "/api/v1/auth/logout").methods("POST"_method)([this](const crow::request &req)
-        {
-            return handleLogout(req);
-        });
-
-        CROW_ROUTE(app_, "/api/v1/auth/logout-all").methods("POST"_method)([this](const crow::request &req)
-        {
-            return handleLogoutAll(req);
-        });
+        CROW_ROUTE(app_, "/api/v1/auth/register").methods("POST"_method)(utils::bindMethod(this, &AuthController::handleRegister));
+        CROW_ROUTE(app_, "/api/v1/auth/login").methods("POST"_method)(utils::bindMethod(this, &AuthController::handleLogin));
+        CROW_ROUTE(app_, "/api/v1/auth/refresh").methods("POST"_method)(utils::bindMethod(this, &AuthController::handleRefresh));
+        CROW_ROUTE(app_, "/api/v1/auth/logout").methods("POST"_method)(utils::bindMethod(this, &AuthController::handleLogout));
+        CROW_ROUTE(app_, "/api/v1/auth/logout-all").methods("POST"_method)(utils::bindMethod(this, &AuthController::handleLogoutAll));
     }
 
 private:

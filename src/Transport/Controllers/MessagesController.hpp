@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Utils/BindMethod.hpp"
 #include <crow/crow.h>
 
 #include <ranges>
@@ -20,10 +21,7 @@ public:
     void registerRoutes()
     {
         // История / синхронизация
-        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/messages").methods("GET"_method)([this](const crow::request &req, std::uint64_t roomId)
-        {
-            return handleGetMessages(req, roomId);
-        });
+        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/messages").methods("GET"_method)(utils::bindMethod(this, &MessagesController::handleGetMessages));
 
         // Отметить как прочитанное
         // CROW_ROUTE(app_, "/api/v1/rooms/<uint>/read").methods("POST"_method)([this](const crow::request &req, std::uint64_t roomId)
