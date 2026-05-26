@@ -25,7 +25,7 @@
                 501,                                                                   \
                 "Cannot serialize " #EnumType ": value " +                             \
                     std::to_string(static_cast<std::underlying_type_t<EnumType>>(e)) + \
-                    " is not a named enumerator",                                       \
+                    " is not a named enumerator",                                      \
                 nullptr);                                                              \
         }                                                                              \
         j = std::string(name);                                                         \
@@ -48,7 +48,7 @@
             throw nlohmann::json::other_error::create(                                 \
                 501,                                                                   \
                 "Cannot deserialize " #EnumType ": '" + s +                            \
-                    "' is not a valid enumerator",                                      \
+                    "' is not a valid enumerator",                                     \
                 &j);                                                                   \
         }                                                                              \
         e = *value;                                                                    \
@@ -117,8 +117,11 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MessagesResponse, roomId, messages, hasMore)
 
 namespace protocol::users
 {
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserDisplayInfo, username, displayname)
+
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MeResponse, userId, username, displayname, registerTime)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserResponse, userId, username, displayname)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UsersLoopByExampleResponse, users)
 } // namespace protocol::users
 
 namespace protocol::ws
