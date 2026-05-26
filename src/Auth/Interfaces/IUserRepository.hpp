@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 #include <Auth/Types/User.hpp>
 #include <Protocol/Types.hpp>
@@ -12,6 +13,7 @@ public:
     virtual ~IUserRepository() = default;
     virtual std::optional<User> findUserByUsername(const std::string &username) const = 0;
     virtual std::optional<User> findUserById(const protocol::UserId id) const = 0;
+    virtual std::optional<std::vector<User>> findUsersByQuery(std::string query, unsigned limit) const = 0;
 
     virtual protocol::UserId create(const std::string &username, const std::string& displayeName, const std::string &passwordHash) = 0;
 
