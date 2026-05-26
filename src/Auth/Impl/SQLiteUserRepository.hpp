@@ -1,8 +1,11 @@
 #pragma once
 
+#include <algorithm>
 #include <ctime>
 #include <memory>
 #include <optional>
+#include <unordered_set>
+#include <vector>
 
 #include <SQLiteCpp/SQLiteCpp.h>
 
@@ -35,6 +38,27 @@ public:
         if (query.executeStep())
             return rowToUser(query);
         return std::nullopt;
+    }
+
+    std::optional<std::vector<User>> findUsersByQuery(std::string query, unsigned limit) const override
+    {
+        if (query.empty() || limit == 0)
+            return std::vector<User>{};
+
+        const std::string likePattern = "%" + escapeLike(query) + "%";
+
+        std::vector<User> results;
+        results.reserve(limit);
+        std::unordered_set<protocol::UserId> seenIds;
+
+        // Первый проход: поиск по displayeName
+        appendMatches(SELECT_BY_DISPLAYNAME_LIKE, likePattern, query, limit, results, seenIds, /*byDisplayName=*/true);
+
+        // Второй проход: добор по username, если не хватило
+        if (results.size() < limit)
+            appendMatches(SELECT_BY_USERNAME_LIKE, likePattern, query, limit, results, seenIds, /*byDisplayName=*/false);
+
+        return results;
     }
 
     protocol::UserId create(const std::string &username, const std::string &displayName, const std::string &passwordHash) override
@@ -70,6 +94,58 @@ public:
     }
 
 private:
+    // Общая БД всего сервера — владение разделяется через shared_ptr.
+    std::shared_ptr<SQLite::Database> db_;
+
+private:
+    // Загружает кандидатов из БД, ранжирует и добавляет в results до достижения limit.
+    // Дедупликация по seenIds — чтобы юзер не попал дважды из двух проходов.
+    void appendMatches(
+        std::string_view sql,
+        const std::string &likePattern,
+        const std::string &query,
+        unsigned limit,
+        std::vector<User> &results,
+        std::unordered_set<protocol::UserId> &seenIds,
+        bool byDisplayName) const
+    {
+        struct Scored
+        {
+            User user;
+            int score;
+        };
+        std::vector<Scored> candidates;
+
+        SQLite::Statement stmt(*db_, sql.data());
+        stmt.bind(1, likePattern);
+
+        while (stmt.executeStep())
+        {
+            User user = rowToUser(stmt);
+            if (seenIds.count(user.id))
+                continue;
+
+            const std::string &field = byDisplayName ? user.displayeName : user.username;
+            candidates.push_back({std::move(user), scoreMatch(field, query)});
+        }
+
+        // Сортировка по убыванию score — лучшие совпадения вперёд.
+        std::sort(candidates.begin(), candidates.end(),
+                  [](const Scored &a, const Scored &b)
+        {
+            return a.score > b.score;
+        });
+
+        for (auto &c : candidates)
+        {
+            if (results.size() >= limit)
+                break;
+            seenIds.insert(c.user.id);
+            results.push_back(std::move(c.user));
+        }
+    }
+
+private:
     // Преобразование строки результата в объект User
     static User rowToUser(SQLite::Statement &query)
     {
@@ -82,10 +158,37 @@ private:
         return user;
     }
 
-    // Общая БД всего сервера — владение разделяется через shared_ptr.
-    std::shared_ptr<SQLite::Database> db_;
+    // Score: чем раньше встретилось совпадение и чем короче поле — тем выше.
+    // Точное совпадение с начала строки даёт максимум.
+    static int scoreMatch(const std::string &field, const std::string &query)
+    {
+        const auto pos = field.find(query);
+        if (pos == std::string::npos)
+            return 0; // не должно случаться — LIKE уже отфильтровал, но на всякий
 
-    // SQL-команды
+        int score = 1000;
+        score -= static_cast<int>(pos) * 10;     // штраф за позицию совпадения
+        score -= static_cast<int>(field.size()); // штраф за длину поля (короче = релевантнее)
+        if (pos == 0)
+            score += 500; // бонус за совпадение с начала
+        return score;
+    }
+
+    // Экранирование спецсимволов LIKE (%, _, \) — чтобы поиск "100%" не превращался в wildcard.
+    static std::string escapeLike(const std::string &s)
+    {
+        std::string result;
+        result.reserve(s.size());
+        for (char c : s)
+        {
+            if (c == '%' || c == '_' || c == '\\')
+                result += '\\';
+            result += c;
+        }
+        return result;
+    }
+
+private: // SQL-команды
     static constexpr std::string_view CREATE_TABLE_COMMAND =
         "CREATE TABLE IF NOT EXISTS users("
         "id INTEGER PRIMARY KEY,"
@@ -112,4 +215,12 @@ private:
 
     static constexpr std::string_view UPDATE_PASSWORD_HASH_COMMAND =
         "UPDATE users SET passwordHash = ? WHERE id = ?";
+
+    static constexpr std::string_view SELECT_BY_DISPLAYNAME_LIKE =
+        "SELECT id, username, passwordHash, registerTime, displayeName "
+        "FROM users WHERE displayeName LIKE ? ESCAPE '\\'";
+
+    static constexpr std::string_view SELECT_BY_USERNAME_LIKE =
+        "SELECT id, username, passwordHash, registerTime, displayeName "
+        "FROM users WHERE username LIKE ? ESCAPE '\\'";
 };
