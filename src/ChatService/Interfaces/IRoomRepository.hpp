@@ -16,6 +16,6 @@ public:
     virtual ~IRoomRepository() = default;
     virtual protocol::RoomId create(const std::string &name, const protocol::rooms::RoomInfo info, const std::time_t createdAt) = 0;
     virtual std::optional<Room> findById(protocol::RoomId id) const = 0;
-    virtual std::vector<Room> findForUser(const protocol::UserId userId) const = 0;
+    virtual std::vector<Room> findForUser(const protocol::UserId userId, const unsigned limit, std::optional<protocol::RoomId> lastLoaded) const = 0;
     virtual void remove(const protocol::RoomId id) = 0;
 };

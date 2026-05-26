@@ -40,14 +40,19 @@ public:
         return std::nullopt;
     }
 
-    std::vector<Room> findForUser(const protocol::UserId userId) const override
+    std::vector<Room> findForUser(const protocol::UserId userId, const unsigned limit, std::optional<protocol::RoomId> lastLoaded) const override
     {
-        // JOIN с roomMembers — это и есть причина, по которой метод тут:
-        // нам нужны полные Room-объекты, а не только roomId.
-        SQLite::Statement query(*db_, SELECT_FOR_USER.data());
-        query.bind(1, static_cast<std::int64_t>(userId));
+        SQLite::Statement query(*db_, lastLoaded ? SELECT_FOR_USER_WITH_START_ROOM.data() : SELECT_FOR_USER.data());
+
+        int index = 1;
+
+        query.bind(index++, static_cast<std::int64_t>(userId));
+        if(lastLoaded)
+            query.bind(index++, static_cast<std::int64_t>(lastLoaded.value()));
+        query.bind(index++, limit);
 
         std::vector<Room> result;
+        result.reserve(limit);
         while (query.executeStep())
             result.push_back(rowToRoom(query));
         return result;
@@ -111,7 +116,7 @@ private:
 
     // ─── SQL ───────────────────────────────────────────────────────
 
-    static constexpr std::string_view CREATE_TABLE_COMMAND =
+    static constexpr const std::string_view CREATE_TABLE_COMMAND =
         "CREATE TABLE IF NOT EXISTS rooms("
         "id          INTEGER PRIMARY KEY AUTOINCREMENT,"
         "name        TEXT    NOT NULL,"
@@ -121,23 +126,32 @@ private:
         "createdAt   INTEGER NOT NULL"
         ")";
 
-    static constexpr std::string_view INSERT_ROOM_COMMAND =
+    static constexpr const std::string_view INSERT_ROOM_COMMAND =
         "INSERT INTO rooms (name, kind, joinPolicy, writePolicy, createdAt) "
         "VALUES (?, ?, ?, ?, ?)";
 
-    static constexpr std::string_view SELECT_BY_ID =
+    static constexpr const std::string_view SELECT_BY_ID =
         "SELECT id, name, kind, joinPolicy, writePolicy, createdAt "
         "FROM rooms WHERE id = ?";
 
     // JOIN: rooms ⋈ roomMembers, фильтр по userId.
     // Возвращает все комнаты, в которых состоит данный юзер.
-    static constexpr std::string_view SELECT_FOR_USER =
+    static constexpr const std::string_view SELECT_FOR_USER =
         "SELECT r.id, r.name, r.kind, r.joinPolicy, r.writePolicy, r.createdAt "
         "FROM rooms r "
         "JOIN roomMembers rm ON rm.roomId = r.id "
         "WHERE rm.userId = ? "
-        "ORDER BY r.id";
+        "ORDER BY r.id "
+        "LIMIT ?";
 
-    static constexpr std::string_view DELETE_ROOM_COMMAND =
+    static constexpr const std::string_view SELECT_FOR_USER_WITH_START_ROOM =
+        "SELECT r.id, r.name, r.kind, r.joinPolicy, r.writePolicy, r.createdAt "
+        "FROM rooms r "
+        "JOIN roomMembers rm ON rm.roomId = r.id "
+        "WHERE rm.userId = ? AND r.id > ? "
+        "ORDER BY r.id "
+        "LIMIT ?";
+
+    static constexpr const std::string_view DELETE_ROOM_COMMAND =
         "DELETE FROM rooms WHERE id = ?";
 };

@@ -16,5 +16,6 @@ public:
     virtual std::vector<Message> findAfter(const protocol::RoomId roomId, const protocol::MessageId afterId, const unsigned limit) const = 0;
     virtual std::vector<Message> findBefore(const protocol::RoomId roomId, const protocol::MessageId beforeId, const unsigned limit) const = 0;
     virtual std::vector<Message> findLatest(const protocol::RoomId roomId, const unsigned limit) const = 0;
+    virtual std::optional<Message> findLastMessageInRoom(const protocol::RoomId roomId) const = 0;
     virtual void removeAllInRoom(const protocol::RoomId roomId) = 0;
 };
