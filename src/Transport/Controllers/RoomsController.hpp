@@ -1,6 +1,9 @@
 #pragma once
 
+#include "ChatService/Types/RoomWithLastMessage.hpp"
+#include "Protocol/Types.hpp"
 #include "Utils/BindMethod.hpp"
+#include <cstdlib>
 #include <ranges>
 
 #include <crow/crow.h>
@@ -23,12 +26,12 @@ public:
 
     void registerRoutes()
     {
-        CROW_ROUTE(app_, "/api/v1/rooms").methods("GET"_method)                     (utils::bindMethod(this, &RoomsController::handleListRooms));    // Список моих комнат
-        CROW_ROUTE(app_, "/api/v1/rooms").methods("POST"_method)                    (utils::bindMethod(this, &RoomsController::handleCreateRoom));   // Создать комнату
-        CROW_ROUTE(app_, "/api/v1/rooms/<uint>")                                    (utils::bindMethod(this, &RoomsController::handleGetRoom));      // Детали комнаты
-        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/members").methods("GET"_method)      (utils::bindMethod(this, &RoomsController::handleGetMembers));   // Список участников
-        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/members").methods("POST"_method)     (utils::bindMethod(this, &RoomsController::handleInviteMember)); // Пригласить участника
-        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/members/me").methods("DELETE"_method)(utils::bindMethod(this, &RoomsController::handleLeaveRoom));    // Покинуть комнату
+        CROW_ROUTE(app_, "/api/v1/rooms").methods("GET"_method)(utils::bindMethod(this, &RoomsController::handleListRooms));                      // Список моих комнат
+        CROW_ROUTE(app_, "/api/v1/rooms").methods("POST"_method)(utils::bindMethod(this, &RoomsController::handleCreateRoom));                    // Создать комнату
+        CROW_ROUTE(app_, "/api/v1/rooms/<uint>")(utils::bindMethod(this, &RoomsController::handleGetRoom));                                       // Детали комнаты
+        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/members").methods("GET"_method)(utils::bindMethod(this, &RoomsController::handleGetMembers));      // Список участников
+        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/members").methods("POST"_method)(utils::bindMethod(this, &RoomsController::handleInviteMember));   // Пригласить участника
+        CROW_ROUTE(app_, "/api/v1/rooms/<uint>/members/me").methods("DELETE"_method)(utils::bindMethod(this, &RoomsController::handleLeaveRoom)); // Покинуть комнату
     }
 
 private:
@@ -43,15 +46,54 @@ private:
         if (!userId)
             return HttpHelpers::unauthorizedResponse();
 
-        auto rooms = chat_.getRoomsByUser(*userId);
+        auto lastLoadedRoomId = req.url_params.get("lastLoadedRoomId"); // const char* или nullptr
+        auto limit = req.url_params.get("limit");
+
+        int intLimit = std::atoi(limit);
+
+        auto rooms = chat_.getRoomsByUser(
+            *userId,
+            intLimit + 1,
+            lastLoadedRoomId
+                ? std::optional<protocol::RoomId>(std::atoll(lastLoadedRoomId))
+                : std::nullopt);
         if (!rooms.has_value())
             return HttpHelpers::mapChatError(rooms.error());
 
         protocol::rooms::GetRoomsResponse resp;
-        resp.rooms = rooms.value() | std::views::transform([](const Room &room) -> protocol::rooms::Room
+        resp.hasMore = rooms->size() > intLimit;
+
+        resp.rooms = rooms.value() | std::views::transform([this](RoomWithLastMessage &rwlm) -> protocol::rooms::RoomInformation
         {
-            return protocol::rooms::Room{.id = room.id, .name = room.name, .info = room.info};
-        }) | std::ranges::to<std::vector<protocol::rooms::Room>>();
+            protocol::rooms::RoomInformation res;
+
+            res.roomInfo.info = std::move(rwlm.room.info);
+            res.roomInfo.id = std::move(rwlm.room.id);
+            res.roomInfo.name = std::move(rwlm.room.name);
+
+            res.lastMessage.createdAt = std::move(rwlm.msg.createdAt);
+            res.lastMessage.fromUserId = std::move(rwlm.msg.fromUserId);
+            res.lastMessage.id = std::move(rwlm.msg.id);
+            res.lastMessage.text = std::move(rwlm.msg.text);
+
+            return res;
+        }) | std::ranges::to<std::vector<protocol::rooms::RoomInformation>>();
+        if (resp.hasMore)
+            resp.rooms.pop_back();
+
+        for(const auto& room : resp.rooms)
+        {
+            if(resp.postMessageSenders.contains(room.lastMessage.fromUserId))
+                continue;
+            auto user = auth_.getUserRepository().findUserById(room.lastMessage.fromUserId);
+            if(!user)
+                continue;
+            protocol::users::UserDisplayInfo udi;
+            udi.displayname = std::move(user->displayeName);
+            udi.username = std::move(user->username);
+            resp.postMessageSenders[room.lastMessage.fromUserId] = std::move(udi);
+        }
+
         return HttpHelpers::jsonResponse(200, resp);
     }
 
