@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ChatService/Types/Message.hpp"
 #include <ctime>
 #include <memory>
 #include <string_view>
@@ -90,6 +91,14 @@ public:
         return result;
     }
 
+    std::optional<Message> findLastMessageInRoom(const protocol::RoomId roomId) const override
+    {
+        SQLite::Statement query(*db_, SELECT_LAST_MESSAGE_FROM_ROOM.data());
+        query.bind(1, static_cast<std::int64_t>(roomId));
+
+        return query.executeStep() ? std::optional<Message>(rowToMessage(query)) : std::nullopt;
+    }
+
     void removeAllInRoom(const protocol::RoomId roomId) override
     {
         SQLite::Statement stmt(*db_, DELETE_ALL_IN_ROOM_COMMAND.data());
@@ -113,7 +122,7 @@ private:
 
     // ─── SQL ───────────────────────────────────────────────────────
 
-    static constexpr std::string_view CREATE_TABLE_COMMAND =
+    static constexpr const std::string_view CREATE_TABLE_COMMAND =
         "CREATE TABLE IF NOT EXISTS messages("
         "id          INTEGER PRIMARY KEY AUTOINCREMENT,"
         "roomId      INTEGER NOT NULL,"
@@ -126,20 +135,20 @@ private:
 
     // Главный индекс — под все запросы вида "сообщения комнаты X с id > Y / < Y".
     // (roomId, id) обслуживает обе SELECT_AFTER и SELECT_BEFORE.
-    static constexpr std::string_view CREATE_INDEX_COMMAND =
+    static constexpr const std::string_view CREATE_INDEX_COMMAND =
         "CREATE INDEX IF NOT EXISTS idx_messages_room ON messages(roomId, id)";
 
-    static constexpr std::string_view INSERT_MESSAGE_COMMAND =
+    static constexpr const std::string_view INSERT_MESSAGE_COMMAND =
         "INSERT INTO messages (roomId, fromUserId, text, createdAt) "
         "VALUES (?, ?, ?, ?)";
 
-    static constexpr std::string_view SELECT_BY_ID =
+    static constexpr const std::string_view SELECT_BY_ID =
         "SELECT id, roomId, fromUserId, text, createdAt "
         "FROM messages WHERE id = ?";
 
     // Хронологический порядок: ASC — старые сначала.
     // Клиент догружает и вставляет в конец списка.
-    static constexpr std::string_view SELECT_AFTER =
+    static constexpr const std::string_view SELECT_AFTER =
         "SELECT id, roomId, fromUserId, text, createdAt "
         "FROM messages "
         "WHERE roomId = ? AND id > ? "
@@ -148,22 +157,29 @@ private:
 
     // Скролл вверх: возвращаем от ближайшего к курсору вниз.
     // Клиент видит первый элемент списка как "следующее раньше известного" — удобно для UI.
-    static constexpr std::string_view SELECT_BEFORE =
+    static constexpr const std::string_view SELECT_BEFORE =
         "SELECT id, roomId, fromUserId, text, createdAt "
         "FROM messages "
         "WHERE roomId = ? AND id < ? "
         "ORDER BY id DESC "
         "LIMIT ?";
 
-    static constexpr std::string_view DELETE_ALL_IN_ROOM_COMMAND =
+    static constexpr const std::string_view DELETE_ALL_IN_ROOM_COMMAND =
         "DELETE FROM messages WHERE roomId = ?";
 
     // Последние limit сообщений комнаты по убыванию id.
     // Используется при первой загрузке: клиент не знает курсора.
-    static constexpr std::string_view SELECT_LATEST =
+    static constexpr const std::string_view SELECT_LATEST =
         "SELECT id, roomId, fromUserId, text, createdAt "
         "FROM messages "
         "WHERE roomId = ? "
         "ORDER BY id DESC "
         "LIMIT ?";
+
+    static constexpr const std::string_view SELECT_LAST_MESSAGE_FROM_ROOM =
+        "SELECT id, roomId, fromUserId, text, createdAt "
+        "FROM messages "
+        "WHERE roomId = ? "
+        "ORDER BY id DESC "
+        "LIMIT 1";
 };
