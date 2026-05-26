@@ -15,12 +15,14 @@
 
 #include <Sessions/SessionManager.hpp>
 #include <optional>
+#include <ranges>
 
 #include "Types/ChatError.hpp"
 #include "Types/MemberRole.hpp"
 #include "Types/MessagePage.hpp"
 #include "Types/Room.hpp"
 #include "Types/RoomMember.hpp"
+#include "Types/RoomWithLastMessage.hpp"
 
 class ChatService
 {
@@ -202,9 +204,22 @@ public: // Actions with responses
         return *room;
     }
 
-    std::expected<std::vector<Room>, ChatError> getRoomsByUser(const protocol::UserId userId)
+    std::expected<std::vector<RoomWithLastMessage>, ChatError> getRoomsByUser(const protocol::UserId userId, const unsigned limit, std::optional<protocol::RoomId> lastLoadedId)
     {
-        return roomRepo_.findForUser(userId);
+        auto rooms = roomRepo_.findForUser(userId, limit, lastLoadedId);
+
+        return rooms | std::views::transform([this](Room &room) -> RoomWithLastMessage
+        {
+            // Читаем id ДО перемещения room — иначе обращение к moved-from объекту.
+            const protocol::RoomId roomId = room.id;
+
+            RoomWithLastMessage res;
+            res.room = std::move(room);
+            auto msg = messageRepo_.findLastMessageInRoom(roomId);
+            if (msg)
+                res.msg = std::move(msg.value());
+            return res;
+        }) | std::ranges::to<std::vector<RoomWithLastMessage>>();
     }
 
     std::expected<protocol::RoomId, ChatError> createRoom(const protocol::UserId sender, const protocol::rooms::CreateRoomRequest &request)
