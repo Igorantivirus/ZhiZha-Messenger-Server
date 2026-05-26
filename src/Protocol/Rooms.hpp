@@ -1,9 +1,12 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "Types.hpp"
+#include "Users.hpp"
+#include "Messages.hpp"
 
 // Спцеиальные данные
 namespace protocol::rooms
@@ -45,6 +48,13 @@ struct Room
     RoomInfo info;
 };
 
+
+struct RoomInformation
+{
+    Room roomInfo;
+    messages::Message lastMessage;
+};
+
 // Информация об участнике
 struct Member
 {
@@ -82,7 +92,9 @@ struct CreateRoomResponse
 
 struct GetRoomsResponse
 {
-    std::vector<Room> rooms;
+    std::vector<RoomInformation> rooms;
+    std::unordered_map<UserId, users::UserDisplayInfo> postMessageSenders;
+    bool hasMore;
 };
 
 struct RoomInfoResponse

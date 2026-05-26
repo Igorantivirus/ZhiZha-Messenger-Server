@@ -15,6 +15,7 @@ enum class ErrorCode : std::uint8_t
     NotFound,           // ресурс не найден
     Forbidden,          // действие запрещено политикой/правами
     UnknownMessageType, // WS: неизвестный type
+    MissingParams,      // Пропущены обязательные параметры запроса
 
     // === Auth-specific ===
     InvalidRefreshToken, // refresh-токен невалиден или истёк

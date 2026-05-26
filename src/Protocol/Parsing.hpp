@@ -1,5 +1,8 @@
 #pragma once
 
+#include <expected>
+#include <variant>
+
 #include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
 
@@ -104,9 +107,10 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Member, userId)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(CreateRoomRequest, roomName, roomInfo, invitedUsers)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(InviteMemberRequest, invitedId)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(CreateRoomResponse, roomId)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(GetRoomsResponse, rooms)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(GetRoomsResponse, rooms, hasMore, postMessageSenders)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomInfoResponse, room)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomsMembersInfoResponse, members)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomInformation, roomInfo, lastMessage)
 } // namespace protocol::rooms
 
 namespace protocol::messages
@@ -142,6 +146,114 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ErrorMessage, type, code, message)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(NewMessageEvent, type, messageId, roomId, senderId, text, createdAt)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserLeftEvent, type, roomId, userId)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomCreatedEvent, type, roomId)
+} // namespace protocol::ws
+
+namespace protocol::ws
+{
+
+enum class WsParsingError : std::uint8_t
+{
+    Unknown,
+    EmptyString,
+    InvalidTypeValue,
+    UnparsableType,
+    NotContainType,
+    InvalidJson
+};
+
+using MessageFromClient = std::variant<Ping, ErrorMessage, SendMessageRequest, CreateRoomRequest, UserLeftEvent, LeaveRoomRequest>;
+using MessageFromServer = std::variant<Pong, ErrorMessage, NewMessageEvent, UserLeftEvent, RoomCreatedEvent>;
+
+namespace
+{
+template <typename T>
+MessageFromServer decodeFromServer(const nlohmann::json &j)
+{
+    T dto;
+    j.get_to(dto);
+    return MessageFromServer{std::move(dto)};
+}
+template <typename T>
+MessageFromClient decodeFromClient(const nlohmann::json &j)
+{
+    T dto;
+    j.get_to(dto);
+    return MessageFromClient{std::move(dto)};
+}
+} // namespace
+
+inline std::expected<MessageFromServer, WsParsingError> parseMessageFromServer(std::string_view str)
+{
+    if (str.empty())
+        return std::unexpected(WsParsingError::EmptyString);
+    try
+    {
+        auto json = nlohmann::json::parse(str);
+        if (!json.contains("type"))
+            return std::unexpected(WsParsingError::NotContainType);
+        WsMessageType type = WsMessageType::Unknown;
+        from_json(json["type"], type);
+        if (type == WsMessageType::Unknown)
+            return std::unexpected(WsParsingError::UnparsableType);
+        switch (type)
+        {
+        case WsMessageType::Pong:
+            return decodeFromServer<Pong>(json);
+        case WsMessageType::Error:
+            return decodeFromServer<ErrorMessage>(json);
+        case WsMessageType::NewMessage:
+            return decodeFromServer<NewMessageEvent>(json);
+        case WsMessageType::UserLeft:
+            return decodeFromServer<UserLeftEvent>(json);
+        case WsMessageType::RoomCreated:
+            return decodeFromServer<RoomCreatedEvent>(json);
+        default:
+            return std::unexpected(WsParsingError::InvalidTypeValue);
+        }
+    }
+    catch (const nlohmann::json::exception &)
+    {
+        return std::unexpected(WsParsingError::InvalidJson);
+    }
+    return std::unexpected(WsParsingError::Unknown);
+}
+
+inline std::expected<MessageFromClient, WsParsingError> parseMessageFromClient(std::string_view str)
+{
+    if (str.empty())
+        return std::unexpected(WsParsingError::EmptyString);
+    try
+    {
+        auto json = nlohmann::json::parse(str);
+        if (!json.contains("type"))
+            return std::unexpected(WsParsingError::NotContainType);
+        WsMessageType type = WsMessageType::Unknown;
+        from_json(json["type"], type);
+        if (type == WsMessageType::Unknown)
+            return std::unexpected(WsParsingError::UnparsableType);
+        switch (type)
+        {
+        case WsMessageType::Ping:
+            return decodeFromClient<Ping>(json);
+        case WsMessageType::Error:
+            return decodeFromClient<ErrorMessage>(json);
+        case WsMessageType::CreateRoom:
+            return decodeFromClient<CreateRoomRequest>(json);
+        case WsMessageType::UserLeft:
+            return decodeFromClient<UserLeftEvent>(json);
+        case WsMessageType::LeaveRoom:
+            return decodeFromClient<LeaveRoomRequest>(json);
+        default:
+            return std::unexpected(WsParsingError::InvalidTypeValue);
+        }
+    }
+    catch (const nlohmann::json::exception &)
+    {
+        return std::unexpected(WsParsingError::InvalidJson);
+    }
+    return std::unexpected(WsParsingError::Unknown);
+}
+
 } // namespace protocol::ws
 
 #ifdef NLOHMANN_JSON_MAGIC_ENUM
