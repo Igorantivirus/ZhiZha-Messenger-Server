@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Protocol/ErrorCode.hpp"
+#include "Protocol/Types.hpp"
 #include <crow/crow.h>
 
 #include <Utils/BindMethod.hpp>
@@ -8,6 +10,8 @@
 #include <Auth/Interfaces/IUserRepository.hpp>
 #include <Protocol/Users.hpp>
 #include <Transport/HttpHelpers.hpp>
+#include <ranges>
+#include <unordered_map>
 
 class UsersController
 {
@@ -34,7 +38,28 @@ private:
 private:
     crow::response handleLoop(const crow::request &req)
     {
-        return HttpHelpers::notFoundResponse("User not found");
+        auto userId = HttpHelpers::requireAuth(req, auth_);
+        if (!userId)
+            return HttpHelpers::unauthorizedResponse();
+
+        auto query = req.url_params.get("query"); // const char* или nullptr
+        auto limit = req.url_params.get("limit");
+
+        if (!query || !limit)
+            return HttpHelpers::errorResponse(400, protocol::ErrorCode::MissingParams, "Missing params: query or limit.");
+
+        auto users = userRepo_.findUsersByQuery(query, std::atoi(limit));
+        if (!users)
+            return HttpHelpers::errorResponse(500, protocol::ErrorCode::InternalError, "Error of generate users list.");
+
+        protocol::users::UsersLoopByExampleResponse resp;
+        resp.users = users.value() | std::views::transform([](const User &user) -> std::pair<protocol::UserId, protocol::users::UserDisplayInfo>
+        {
+            return std::pair<protocol::UserId, protocol::users::UserDisplayInfo>{
+                user.id, protocol::users::UserDisplayInfo{.username = user.username, .displayname = user.displayeName}
+            };
+        }) | std::ranges::to<std::unordered_map<protocol::UserId, protocol::users::UserDisplayInfo>>();
+        return HttpHelpers::jsonResponse(200, resp);
     }
 
     crow::response handleGetMe(const crow::request &req)
