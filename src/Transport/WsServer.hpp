@@ -1,7 +1,9 @@
 // Transport/WsServer.hpp
 #pragma once
 
+#include "Utils/BindMethod.hpp"
 #include <cstdint>
+#include <iostream>
 #include <string>
 
 #include <crow/crow.h>
@@ -33,19 +35,10 @@ public:
     void registerRoutes()
     {
         CROW_WEBSOCKET_ROUTE(app_, "/ws")
-            .onaccept([this](const crow::request &req, void **userdata)
-        {
-            return onAccept(req, userdata);
-        }).onopen([this](crow::websocket::connection &conn)
-        {
-            onOpen(conn);
-        }).onmessage([this](crow::websocket::connection &conn, const std::string &data, bool isBinary)
-        {
-            onMessage(conn, data, isBinary);
-        }).onclose([this](crow::websocket::connection &conn, const std::string &reason, uint16_t code)
-        {
-            onClose(conn, reason, code);
-        });
+            .onaccept(utils::bindMethod(this, &WsServer::onAccept))
+            .onopen(utils::bindMethod(this, &WsServer::onOpen))
+            .onmessage(utils::bindMethod(this, &WsServer::onMessage))
+            .onclose(utils::bindMethod(this, &WsServer::onClose));
     }
 
 private:
@@ -64,6 +57,7 @@ private:
     // Crow перенесёт его в connection.userdata(), и оно доживёт до onclose.
     bool onAccept(const crow::request &req, void **userdata)
     {
+        std::cout << "Accept\n" << '\n';
         std::optional<protocol::UserId> userId = extractUserId(req);
         if (!userId)
             return false;
@@ -74,6 +68,7 @@ private:
 
     void onOpen(crow::websocket::connection &conn)
     {
+        std::cout << "Open\n" << '\n';
         const protocol::UserId userId = userIdOf(conn);
         sessions_.add(conn, userId);
         chat_.onUserConnected(userId);
