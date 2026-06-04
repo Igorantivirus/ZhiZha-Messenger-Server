@@ -21,14 +21,13 @@ enum class WsMessageType
 
     Ping,        // клиент -> сервер: проверка живости
     SendMessage, // клиент -> сервер: отправить сообщение в чат
-    CreateRoom,  // клиент -> сервер: создать комнату
-    LeaveRoom,   // клиент -> сервер: покинуть комнату
+    // Создание и покидание комнаты делаются через HTTP REST, не через WS.
 
     Pong,       // сервер -> клиент: ответ на ping
     Error,      // сервер -> клиент: ошибка (может прийти в любой момент)
     NewMessage, // сервер -> клиент: новое сообщение в чате
-    UserLeft,   // сервер -> клиент: пользователь покинул комнату
-    RoomCreated // сервер -> клиент: создана комната
+    UserLeft,   // сервер -> клиент: пользователь покинул комнату (событие)
+    RoomCreated // сервер -> клиент: пользователя добавили в новую комнату (событие)
 };
 struct Envelope
 {
@@ -51,20 +50,6 @@ struct SendMessageRequest
     WsMessageType type = WsMessageType::SendMessage;
     RoomId roomId = 0;
     std::string text;
-};
-
-struct CreateRoomRequest
-{
-    WsMessageType type = WsMessageType::CreateRoom;
-    std::string roomName;
-    rooms::RoomInfo roomInfo;
-    std::vector<UserId> invitedUsers;
-};
-
-struct LeaveRoomRequest
-{
-    WsMessageType type = WsMessageType::LeaveRoom;
-    RoomId roomId = 0;
 };
 } // namespace protocol::ws
 

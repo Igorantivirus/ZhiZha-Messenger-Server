@@ -137,8 +137,6 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Envelope, type)
 // клиент -> сервер
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Ping, type)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SendMessageRequest, type, roomId, text)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(CreateRoomRequest, type, roomName, roomInfo, invitedUsers)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LeaveRoomRequest, type, roomId)
 
 // сервер -> клиент
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Pong, type)
@@ -161,7 +159,7 @@ enum class WsParsingError : std::uint8_t
     InvalidJson
 };
 
-using MessageFromClient = std::variant<Ping, ErrorMessage, SendMessageRequest, CreateRoomRequest, UserLeftEvent, LeaveRoomRequest>;
+using MessageFromClient = std::variant<Ping, ErrorMessage, SendMessageRequest>;
 using MessageFromServer = std::variant<Pong, ErrorMessage, NewMessageEvent, UserLeftEvent, RoomCreatedEvent>;
 
 namespace
@@ -237,12 +235,8 @@ inline std::expected<MessageFromClient, WsParsingError> parseMessageFromClient(s
             return decodeFromClient<Ping>(json);
         case WsMessageType::Error:
             return decodeFromClient<ErrorMessage>(json);
-        case WsMessageType::CreateRoom:
-            return decodeFromClient<CreateRoomRequest>(json);
-        case WsMessageType::UserLeft:
-            return decodeFromClient<UserLeftEvent>(json);
-        case WsMessageType::LeaveRoom:
-            return decodeFromClient<LeaveRoomRequest>(json);
+        case WsMessageType::SendMessage:
+            return decodeFromClient<SendMessageRequest>(json);
         default:
             return std::unexpected(WsParsingError::InvalidTypeValue);
         }
