@@ -2,6 +2,8 @@
 
 #include <expected>
 
+#include <crow/crow.h>
+
 #include <Utils/Time.hpp>
 
 #include <Protocol/Parsing.hpp>
@@ -48,12 +50,12 @@ public: // Actions without answers
     {
     }
 
-    std::expected<protocol::MessageId, ChatError> onSendMessage(const protocol::UserId sender, const protocol::ws::SendMessageRequest &request)
+    std::expected<protocol::MessageId, ChatError> onSendMessage(const protocol::UserId sender, crow::websocket::connection &senderConn, const protocol::ws::SendMessageRequest &request)
     {
         // 1. Валидация текста
         if (request.text.empty())
             return std::unexpected(ChatError::EmptyMessage);
-        if (request.text.size() > 1000)
+        if (request.text.size() > maxMessageSize_)
             return std::unexpected(ChatError::MessageTooLong);
 
         // 2. Достаём комнату — нужна для проверки writePolicy
@@ -71,34 +73,37 @@ public: // Actions without answers
         if (room->info.writePolicy == protocol::rooms::WritePolicy::AdminsOnly && member->role == MemberRole::Member)
             return std::unexpected(ChatError::WriteForbidden);
 
-        // 5. Сохраняем
-        const protocol::MessageId msgId = messageRepo_.create(request.roomId, sender, request.text);
+        // 5. Сохраняем. create() возвращает готовое сообщение с присвоенным id
+        //    и серверным createdAt — это единственный источник времени, его же
+        //    шлём и в ack, и в рассылке (никаких повторных замеров).
+        const Message msg = messageRepo_.create(request.roomId, sender, request.text);
 
-        const std::time_t now = getCurrentTime();
+        // 6. СНАЧАЛА подтверждаем — но только тому соединению, что прислало
+        //    сообщение. Ack несёт usersMessageId, по которому именно это
+        //    соединение свяжет свой временный id с присвоенным сервером.
+        protocol::ws::MessageAckEvent ack{
+            .usersMessageId = request.usersMessageId,
+            .messageId = msg.id,
+            .roomId = msg.roomId,
+            .createdAt = msg.createdAt};
+        sessions_.sendToConnection(senderConn, nlohmann::json(ack).dump());
 
-        // 6. Формируем event для рассылки (один раз — потом разошлём всем)
-        Message msg{
-            .id = msgId,
-            .roomId = request.roomId,
-            .fromUserId = sender,
-            .text = request.text,
-            .createdAt = now};
-
+        // 7. Рассылаем NewMessage всем участникам, КРОМE того одного
+        //    соединения, что прислало сообщение (оно получило Ack). Другие
+        //    устройства отправителя получают NewMessage как обычные участники
+        //    и по senderId == свой userId понимают «это моё сообщение».
         protocol::ws::NewMessageEvent event{
-            .messageId = msgId,
-            .roomId = request.roomId,
-            .senderId = sender,
-            .text = request.text,
-            .createdAt = now};
-
+            .messageId = msg.id,
+            .roomId = msg.roomId,
+            .senderId = msg.fromUserId,
+            .text = msg.text,
+            .createdAt = msg.createdAt};
         const std::string payload = nlohmann::json(event).dump();
 
-        // 7. Рассылаем участникам комнаты, кто онлайн
-        auto members = roomMembersRepo_.membersOf(request.roomId);
-        for (const auto &m : members)
-            sessions_.sendToUser(m.userId, payload);
+        for (const auto &m : roomMembersRepo_.membersOf(request.roomId))
+            sessions_.sendToUserExcept(m.userId, &senderConn, payload);
 
-        return msgId;
+        return msg.id;
     }
 
 public: // Actions with responses
@@ -191,6 +196,15 @@ public: // Actions with responses
 
         // Все проверки пройдены — фактически добавляем участника.
         roomMembersRepo_.add(roomId, invited, MemberRole::Member, getCurrentTime());
+
+        // Уведомляем участников комнаты (включая только что добавленного,
+        // его клиент так узнает, что комната ему доступна). membersOf уже
+        // содержит invited, так как add выше прошёл.
+        protocol::ws::UserJoinedEvent event{.roomId = roomId, .userId = invited};
+        const std::string payload = nlohmann::json(event).dump();
+        for (const auto &m : roomMembersRepo_.membersOf(roomId))
+            sessions_.sendToUser(m.userId, payload);
+
         return std::nullopt;
     }
 
@@ -247,11 +261,18 @@ public: // Actions with responses
             roomMembersRepo_.add(roomId, invitedId, MemberRole::Member, now);
         }
 
-        // Уведомить всех приглашённых, кто онлайн
-        protocol::ws::RoomCreatedEvent event{.roomId = roomId};
+        // Уведомить всех участников комнаты, кто онлайн — включая создателя.
+        // Создателю событие нужно для мультидевайса: другие его устройства
+        // (не те, что слали HTTP-запрос) так узнают о новой комнате. Несём
+        // полную Room, чтобы клиент отрисовал её в списке без доп. запроса.
+        protocol::ws::RoomCreatedEvent event{
+            .room = protocol::rooms::Room{
+                .id = roomId,
+                .name = request.roomName,
+                .info = request.roomInfo}};
         const std::string payload = nlohmann::json(event).dump();
-        for (const protocol::UserId invitedId : request.invitedUsers)
-            sessions_.sendToUser(invitedId, payload);
+        for (const auto &m : roomMembersRepo_.membersOf(roomId))
+            sessions_.sendToUser(m.userId, payload);
 
         return roomId;
     }
