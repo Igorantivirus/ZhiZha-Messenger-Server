@@ -84,32 +84,22 @@ public:
         return errorResponse(403, protocol::ErrorCode::Forbidden, std::move(what));
     }
 
-    // Доменная ошибка чата -> HTTP-код + protocol::ErrorCode.
+    // Доменная ошибка чата -> HTTP-ответ.
     static crow::response mapChatError(ChatError e)
     {
-        using protocol::ErrorCode;
-        switch (e)
-        {
-        case ChatError::NotAMember:
-            return errorResponse(403, ErrorCode::NotAMember, "You are not a member of this room");
-        case ChatError::WriteForbidden:
-            return errorResponse(403, ErrorCode::WriteForbidden, "You don't have permission to write in this room");
-        case ChatError::PermissionError:
-            return errorResponse(403, ErrorCode::Forbidden, "You don't have permission for this action");
-        case ChatError::EmptyMessage:
-            return errorResponse(400, ErrorCode::EmptyMessage, "Message cannot be empty");
-        case ChatError::MessageTooLong:
-            return errorResponse(413, ErrorCode::MessageTooLong, "Message exceeds maximum allowed length");
-        case ChatError::RoomNotFound:
-            return errorResponse(404, ErrorCode::RoomNotFound, "Room not found");
-        case ChatError::InvalidDirectRoom:
-            return errorResponse(400, ErrorCode::InvalidDirectRoom, "Direct room must have exactly one invited user");
-        case ChatError::EmptyRoomName:
-            return errorResponse(400, ErrorCode::EmptyRoomName, "Room name cannot be empty");
-        case ChatError::MemberAlready:
-            return errorResponse(409, ErrorCode::MemberAlready, "User is already a member of this room");
-        }
-        return errorResponse(500, ErrorCode::InternalError, "Internal server error");
+        const ChatErrorInfo info = mapChatErrorInfo(e);
+        return errorResponse(info.httpStatus, info.code, std::string(info.message));
+    }
+
+    // Доменная ошибка чата -> WS-сообщение об ошибке. Использует ту же
+    // таблицу соответствия, что и HTTP-вариант — код и текст идентичны,
+    // отличается только транспортная обёртка.
+    static protocol::ws::ErrorMessage mapChatErrorWs(ChatError e)
+    {
+        const ChatErrorInfo info = mapChatErrorInfo(e);
+        return protocol::ws::ErrorMessage{
+            .code = info.code,
+            .message = std::string(info.message)};
     }
 
     // Доменная ошибка аутентификации -> HTTP-код + protocol::ErrorCode.
@@ -132,5 +122,44 @@ public:
             return errorResponse(401, ErrorCode::InvalidToken, "Token is invalid or expired");
         }
         return errorResponse(500, ErrorCode::InternalError, "Internal server error");
+    }
+
+private:
+    // Транспортно-независимый результат маппинга ChatError: общий код и текст
+    // плюс HTTP-статус (нужен только HTTP-варианту). Приватный — наружу торчат
+    // только mapChatError (HTTP) и mapChatErrorWs (WS), оба берут данные отсюда.
+    struct ChatErrorInfo
+    {
+        int httpStatus;           // только для HTTP-ответа
+        protocol::ErrorCode code; // общий код для HTTP и WS
+        std::string_view message; // человекочитаемый текст
+    };
+
+    // Единственная таблица соответствия ChatError -> код/текст/HTTP-статус.
+    static ChatErrorInfo mapChatErrorInfo(ChatError e)
+    {
+        using protocol::ErrorCode;
+        switch (e)
+        {
+        case ChatError::NotAMember:
+            return {403, ErrorCode::NotAMember, "You are not a member of this room"};
+        case ChatError::WriteForbidden:
+            return {403, ErrorCode::WriteForbidden, "You don't have permission to write in this room"};
+        case ChatError::PermissionError:
+            return {403, ErrorCode::Forbidden, "You don't have permission for this action"};
+        case ChatError::EmptyMessage:
+            return {400, ErrorCode::EmptyMessage, "Message cannot be empty"};
+        case ChatError::MessageTooLong:
+            return {413, ErrorCode::MessageTooLong, "Message exceeds maximum allowed length"};
+        case ChatError::RoomNotFound:
+            return {404, ErrorCode::RoomNotFound, "Room not found"};
+        case ChatError::InvalidDirectRoom:
+            return {400, ErrorCode::InvalidDirectRoom, "Direct room must have exactly one invited user"};
+        case ChatError::EmptyRoomName:
+            return {400, ErrorCode::EmptyRoomName, "Room name cannot be empty"};
+        case ChatError::MemberAlready:
+            return {409, ErrorCode::MemberAlready, "User is already a member of this room"};
+        }
+        return {500, ErrorCode::InternalError, "Internal server error"};
     }
 };
