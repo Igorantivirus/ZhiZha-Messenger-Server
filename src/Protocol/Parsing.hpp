@@ -136,14 +136,18 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Envelope, type)
 
 // клиент -> сервер
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Ping, type)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SendMessageRequest, type, roomId, text)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SendMessageRequest, type, roomId, text, usersMessageId)
 
 // сервер -> клиент
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Pong, type)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ErrorMessage, type, code, message)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(NewMessageEvent, type, messageId, roomId, senderId, text, createdAt)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MessageAckEvent, type, usersMessageId, messageId, roomId, createdAt)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomCreatedEvent, type, room)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomDeletedEvent, type, roomId)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomUpdatedEvent, type, room)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserJoinedEvent, type, roomId, userId)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserLeftEvent, type, roomId, userId)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomCreatedEvent, type, roomId)
 } // namespace protocol::ws
 
 namespace protocol::ws
@@ -160,7 +164,9 @@ enum class WsParsingError : std::uint8_t
 };
 
 using MessageFromClient = std::variant<Ping, ErrorMessage, SendMessageRequest>;
-using MessageFromServer = std::variant<Pong, ErrorMessage, NewMessageEvent, UserLeftEvent, RoomCreatedEvent>;
+using MessageFromServer = std::variant<Pong, ErrorMessage, NewMessageEvent, MessageAckEvent,
+                                       RoomCreatedEvent, RoomDeletedEvent, RoomUpdatedEvent,
+                                       UserJoinedEvent, UserLeftEvent>;
 
 namespace
 {
@@ -201,10 +207,18 @@ inline std::expected<MessageFromServer, WsParsingError> parseMessageFromServer(s
             return decodeFromServer<ErrorMessage>(json);
         case WsMessageType::NewMessage:
             return decodeFromServer<NewMessageEvent>(json);
-        case WsMessageType::UserLeft:
-            return decodeFromServer<UserLeftEvent>(json);
+        case WsMessageType::MessageAck:
+            return decodeFromServer<MessageAckEvent>(json);
         case WsMessageType::RoomCreated:
             return decodeFromServer<RoomCreatedEvent>(json);
+        case WsMessageType::RoomDeleted:
+            return decodeFromServer<RoomDeletedEvent>(json);
+        case WsMessageType::RoomUpdated:
+            return decodeFromServer<RoomUpdatedEvent>(json);
+        case WsMessageType::UserJoined:
+            return decodeFromServer<UserJoinedEvent>(json);
+        case WsMessageType::UserLeft:
+            return decodeFromServer<UserLeftEvent>(json);
         default:
             return std::unexpected(WsParsingError::InvalidTypeValue);
         }
