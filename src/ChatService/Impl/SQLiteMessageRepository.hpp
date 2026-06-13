@@ -21,11 +21,11 @@ public:
         db_->exec(CREATE_INDEX_COMMAND.data());
     }
 
-    protocol::MessageId create(const protocol::RoomId roomId,
-                               const protocol::UserId fromUserId,
-                               const std::string &text) override
+    Message create(const protocol::RoomId roomId,
+                   const protocol::UserId fromUserId,
+                   const std::string &text) override
     {
-        // createdAt берём прямо здесь — это серверное время, не клиентское
+        // createdAt берём прямо здесь — это серверное время, не клиентское.
         const std::int64_t createdAt = static_cast<std::int64_t>(std::time(nullptr));
 
         SQLite::Statement insert(*db_, INSERT_MESSAGE_COMMAND.data());
@@ -34,7 +34,15 @@ public:
         insert.bind(3, text);
         insert.bind(4, createdAt);
         insert.exec();
-        return static_cast<protocol::MessageId>(db_->getLastInsertRowid());
+
+        // Возвращаем готовое сообщение с тем же createdAt, что записан в БД —
+        // вызывающий рассылает именно его, без повторного замера времени.
+        return Message{
+            .id = static_cast<protocol::MessageId>(db_->getLastInsertRowid()),
+            .roomId = roomId,
+            .fromUserId = fromUserId,
+            .text = text,
+            .createdAt = static_cast<std::time_t>(createdAt)};
     }
 
     std::optional<Message> findById(const protocol::MessageId id) const override
