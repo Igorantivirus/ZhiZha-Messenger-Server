@@ -49,7 +49,7 @@ private:
         auto lastLoadedRoomId = req.url_params.get("lastLoadedRoomId"); // const char* или nullptr
         auto limit = req.url_params.get("limit");
 
-        int intLimit = std::atoi(limit);
+        int intLimit = std::atoi(limit ? limit : "0");
 
         auto rooms = chat_.getRoomsByUser(
             *userId,
