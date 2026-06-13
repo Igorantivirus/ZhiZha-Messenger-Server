@@ -4,7 +4,9 @@
 #include "Utils/BindMethod.hpp"
 #include <cstdint>
 #include <iostream>
+#include <optional>
 #include <string>
+#include <variant>
 
 #include <crow/crow.h>
 #include <nlohmann/json.hpp>
@@ -16,6 +18,7 @@
 #include <Protocol/Types.hpp>
 #include <Protocol/Ws.hpp>
 #include <Sessions/SessionManager.hpp>
+#include <Transport/HttpHelpers.hpp>
 
 // WebSocket-слой. Аутентификация — в handshake: клиент шлёт
 // Authorization: Bearer <accessToken>. Невалидный токен => подключение
@@ -69,9 +72,15 @@ private:
     void onOpen(crow::websocket::connection &conn)
     {
         std::cout << "Open\n" << '\n';
-        const protocol::UserId userId = userIdOf(conn);
-        sessions_.add(conn, userId);
-        chat_.onUserConnected(userId);
+        const auto userId = userIdOf(conn);
+        if (!userId)
+        {
+            // userdata не выставлен — соединение в некорректном состоянии, закрываем.
+            conn.close("Missing session");
+            return;
+        }
+        sessions_.add(conn, *userId);
+        chat_.onUserConnected(*userId);
     }
 
     void onMessage(crow::websocket::connection &conn, const std::string &data, bool isBinary)
@@ -82,20 +91,19 @@ private:
             return;
         }
 
-        nlohmann::json json;
-        try
+        // Единственный путь разбора входящего сообщения — протокольный парсер
+        // на основе variant. Никакого ручного разбора JSON здесь нет.
+        auto parsed = protocol::ws::parseMessageFromClient(data);
+        if (!parsed)
         {
-            json = nlohmann::json::parse(data);
-        }
-        catch (const std::exception &)
-        {
-            sendError(conn, protocol::ErrorCode::InvalidFormat, "Message is not valid JSON");
+            sendError(conn, mapParsingError(parsed.error()), "Cannot parse message");
             return;
         }
 
-        // Сначала читаем только дискриминатор, потом — конкретную структуру.
-        const auto type = json.value("type", protocol::ws::WsMessageType::Unknown);
-        dispatch(conn, type, json);
+        // Диспетчеризация по фактическому типу варианта.
+        std::visit([this, &conn](auto &&msg)
+                   { handle(conn, msg); },
+                   *parsed);
     }
 
     void onClose(crow::websocket::connection &conn, const std::string & /*reason*/, uint16_t /*code*/)
@@ -112,42 +120,32 @@ private:
 
 private:
     // ─────────────────────────────────────────────────────────────
-    // ДИСПЕТЧЕРИЗАЦИЯ
+    // ОБРАБОТЧИКИ ПО ТИПУ СООБЩЕНИЯ (выбираются через std::visit)
     // ─────────────────────────────────────────────────────────────
 
-    void dispatch(crow::websocket::connection &conn, protocol::ws::WsMessageType type, const nlohmann::json &json)
+    void handle(crow::websocket::connection &conn, const protocol::ws::Ping &)
     {
-        using protocol::ws::WsMessageType;
-        switch (type)
-        {
-        case WsMessageType::Ping:
-            conn.send_text(nlohmann::json(protocol::ws::Pong{}).dump());
-            return;
-
-        case WsMessageType::SendMessage:
-            handleSendMessage(conn, json);
-            return;
-
-        default:
-            sendError(conn, protocol::ErrorCode::UnknownMessageType, "Unsupported message type");
-            return;
-        }
+        conn.send_text(nlohmann::json(protocol::ws::Pong{}).dump());
     }
 
-    void handleSendMessage(crow::websocket::connection &conn, const nlohmann::json &json)
+    void handle(crow::websocket::connection &conn, const protocol::ws::SendMessageRequest &request)
     {
-        protocol::ws::SendMessageRequest request;
-        try
+        const auto userId = userIdOf(conn);
+        if (!userId)
         {
-            json.get_to(request);
-        }
-        catch (const std::exception &)
-        {
-            sendError(conn, protocol::ErrorCode::InvalidFormat, "Malformed sendMessage payload");
+            sendError(conn, protocol::ErrorCode::Unauthorized, "No session for this connection");
             return;
         }
 
-        void(chat_.onSendMessage(userIdOf(conn), request));
+        auto result = chat_.onSendMessage(*userId, conn, request);
+        if (!result)
+            sendError(conn, HttpHelpers::mapChatErrorWs(result.error()));
+    }
+
+    // ErrorMessage входит в MessageFromClient, но клиент не должен слать ошибки
+    // серверу — игнорируем такой кадр (можно при желании ответить ошибкой).
+    void handle(crow::websocket::connection & /*conn*/, const protocol::ws::ErrorMessage &)
+    {
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -165,15 +163,44 @@ private:
     }
 
 private:
-    // userId соединения, гарантированно установленный в onAccept.
-    static protocol::UserId userIdOf(crow::websocket::connection &conn)
+    // userId соединения. В норме userdata выставлен в onAccept, но проверяем
+    // на nullptr явно — без проверки разыменование давало бы UB, если кадр
+    // как-то пришёл на соединение без установленного userdata.
+    static std::optional<protocol::UserId> userIdOf(crow::websocket::connection &conn)
     {
-        return *static_cast<protocol::UserId *>(conn.userdata());
+        auto *ptr = static_cast<protocol::UserId *>(conn.userdata());
+        if (!ptr)
+            return std::nullopt;
+        return *ptr;
     }
 
     static void sendError(crow::websocket::connection &conn, protocol::ErrorCode code, std::string message)
     {
-        protocol::ws::ErrorMessage err{.code = code, .message = std::move(message)};
+        sendError(conn, protocol::ws::ErrorMessage{.code = code, .message = std::move(message)});
+    }
+
+    static void sendError(crow::websocket::connection &conn, const protocol::ws::ErrorMessage &err)
+    {
         conn.send_text(nlohmann::json(err).dump());
+    }
+
+    // Ошибка протокольного парсера -> единый код ошибки для клиента.
+    static protocol::ErrorCode mapParsingError(protocol::ws::WsParsingError e)
+    {
+        using protocol::ErrorCode;
+        using protocol::ws::WsParsingError;
+        switch (e)
+        {
+        case WsParsingError::EmptyString:
+        case WsParsingError::InvalidJson:
+            return ErrorCode::InvalidFormat;
+        case WsParsingError::NotContainType:
+        case WsParsingError::UnparsableType:
+        case WsParsingError::InvalidTypeValue:
+            return ErrorCode::UnknownMessageType;
+        case WsParsingError::Unknown:
+            break;
+        }
+        return ErrorCode::InvalidFormat;
     }
 };
