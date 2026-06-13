@@ -76,6 +76,36 @@ public:
         return targets.size();
     }
 
+    // Отправляет текст всем подключениям пользователя, КРОМE одного соединения
+    // except. Нужно, чтобы NewMessage ушёл на все устройства отправителя, но
+    // не вернулся в то самое соединение, что прислало сообщение (оно получит
+    // Ack вместо NewMessage). Возвращает число фактических адресатов.
+    std::size_t sendToUserExcept(protocol::UserId userId,
+                                 const crow::websocket::connection *except,
+                                 const std::string &text) const
+    {
+        std::vector<crow::websocket::connection *> targets;
+        {
+            std::shared_lock lock(mtx_);
+            auto it = byUser_.find(userId);
+            if (it == byUser_.end())
+                return 0;
+            for (auto *conn : it->second)
+                if (conn != except)
+                    targets.push_back(conn);
+        }
+        for (auto *conn : targets)
+            conn->send_text(text);
+        return targets.size();
+    }
+
+    // Отправляет текст одному конкретному соединению. Используется для Ack —
+    // он адресован именно тому соединению, что прислало сообщение.
+    void sendToConnection(crow::websocket::connection &conn, const std::string &text) const
+    {
+        conn.send_text(text);
+    }
+
     bool isOnline(protocol::UserId userId) const
     {
         std::shared_lock lock(mtx_);
