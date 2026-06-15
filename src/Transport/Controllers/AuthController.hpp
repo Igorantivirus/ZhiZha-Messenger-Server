@@ -39,7 +39,7 @@ private:
         if (!HttpHelpers::parseBody(req, dto))
             return HttpHelpers::invalidFormatResponse();
 
-        auto result = auth_.registerUser(dto.username, dto.password, dto.displayName);
+        auto result = auth_.registerUser(dto.username, dto.password, dto.displayName, dto.birthDate, dto.country);
         if (!result.has_value())
             return HttpHelpers::mapAuthError(result.error());
 
