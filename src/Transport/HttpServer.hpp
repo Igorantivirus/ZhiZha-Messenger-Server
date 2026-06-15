@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ChatService/Interfaces/IRoomRepository.hpp"
 #include <crow/crow.h>
 
 #include <Auth/AuthService.hpp>
@@ -21,9 +22,14 @@ public:
                AuthService &auth,
                ChatService &chat,
                IUserRepository &userRepo,
+               IRoomRepository &roomsRepo,
                std::time_t accessTtl,
                std::time_t refreshTtl)
-        : apiController_(app, accessTtl, refreshTtl), authController_(app, auth), usersController_(app, auth, userRepo), roomsController_(app, auth, chat), messagesController_(app, auth, chat)
+        : apiController_(app, accessTtl, refreshTtl),
+          authController_(app, auth),
+          usersController_(app, auth, userRepo),
+          roomsController_(app, auth, chat, roomsRepo),
+          messagesController_(app, auth, chat)
     {
     }
 
