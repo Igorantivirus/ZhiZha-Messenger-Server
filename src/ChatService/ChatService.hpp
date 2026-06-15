@@ -20,7 +20,6 @@
 #include <ranges>
 
 #include "Types/ChatError.hpp"
-#include "Types/MemberRole.hpp"
 #include "Types/MessagePage.hpp"
 #include "Types/Room.hpp"
 #include "Types/RoomMember.hpp"
@@ -70,7 +69,7 @@ public: // Actions without answers
 
         // 4. Проверка прав на запись
 
-        if (room->info.writePolicy == protocol::rooms::WritePolicy::AdminsOnly && member->role == MemberRole::Member)
+        if (room->info.writePolicy == protocol::rooms::WritePolicy::AdminsOnly && member->role == protocol::rooms::MemberRole::Member)
             return std::unexpected(ChatError::WriteForbidden);
 
         // 5. Сохраняем. create() возвращает готовое сообщение с присвоенным id
@@ -187,7 +186,7 @@ public: // Actions with responses
         if // проверка на возможность приглашения
             (
                 room->info.joinPolicy == protocol::rooms::JoinPolicy::Closed ||                                                                             // Если нельзя приглашать
-                (room->info.joinPolicy == protocol::rooms::JoinPolicy::ByAdmin && (member->role != MemberRole::Admin && member->role != MemberRole::Owner)) // Если приглашать могут только админы, а приглашающий - не админ и не создатель
+                (room->info.joinPolicy == protocol::rooms::JoinPolicy::ByAdmin && (member->role != protocol::rooms::MemberRole::Admin && member->role != protocol::rooms::MemberRole::Owner)) // Если приглашать могут только админы, а приглашающий - не админ и не создатель
             )
             return ChatError::PermissionError;
 
@@ -195,12 +194,38 @@ public: // Actions with responses
             return ChatError::MemberAlready;
 
         // Все проверки пройдены — фактически добавляем участника.
-        roomMembersRepo_.add(roomId, invited, MemberRole::Member, getCurrentTime());
+        roomMembersRepo_.add(roomId, invited, protocol::rooms::MemberRole::Member, getCurrentTime());
 
         // Уведомляем участников комнаты (включая только что добавленного,
         // его клиент так узнает, что комната ему доступна). membersOf уже
         // содержит invited, так как add выше прошёл.
         protocol::ws::UserJoinedEvent event{.roomId = roomId, .userId = invited};
+        const std::string payload = nlohmann::json(event).dump();
+        for (const auto &m : roomMembersRepo_.membersOf(roomId))
+            sessions_.sendToUser(m.userId, payload);
+
+        return std::nullopt;
+    }
+
+    std::optional<ChatError> changeRoomInfo(const protocol::UserId userId, const protocol::RoomId roomId, protocol::rooms::Room newInfo)
+    {
+        // Право на изменение есть только у Admin/Owner — как при ByAdmin-приглашении.
+        auto member = roomMembersRepo_.get(roomId, userId);
+        if (!member)
+            return ChatError::NotAMember;
+        if (member->role != protocol::rooms::MemberRole::Admin && member->role != protocol::rooms::MemberRole::Owner)
+            return ChatError::PermissionError;
+
+        // URL — источник истины для id: не доверяем id из тела запроса.
+        newInfo.id = roomId;
+
+        // changeRoomsInfo вернёт false, если комнаты с таким id нет.
+        if (!roomRepo_.changeRoomsInfo(newInfo))
+            return ChatError::RoomNotFound;
+
+        // Рассылаем актуальную Room всем участникам (включая редактора — для
+        // его других устройств), как в createRoom/inviteUser.
+        protocol::ws::RoomUpdatedEvent event{.room = newInfo};
         const std::string payload = nlohmann::json(event).dump();
         for (const auto &m : roomMembersRepo_.membersOf(roomId))
             sessions_.sendToUser(m.userId, payload);
@@ -253,12 +278,12 @@ public: // Actions with responses
         const std::time_t now = getCurrentTime();
         const protocol::RoomId roomId = roomRepo_.create(request.roomName, request.roomInfo, now);
 
-        roomMembersRepo_.add(roomId, sender, MemberRole::Owner, now);
+        roomMembersRepo_.add(roomId, sender, protocol::rooms::MemberRole::Owner, now);
         for (const protocol::UserId invitedId : request.invitedUsers)
         {
             if (invitedId == sender)
                 continue; // не добавляем себя дважды
-            roomMembersRepo_.add(roomId, invitedId, MemberRole::Member, now);
+            roomMembersRepo_.add(roomId, invitedId, protocol::rooms::MemberRole::Member, now);
         }
 
         // Уведомить всех участников комнаты, кто онлайн — включая создателя.
@@ -267,14 +292,97 @@ public: // Actions with responses
         // полную Room, чтобы клиент отрисовал её в списке без доп. запроса.
         protocol::ws::RoomCreatedEvent event{
             .room = protocol::rooms::Room{
-                .id = roomId,
-                .name = request.roomName,
-                .info = request.roomInfo}};
+                                          .id = roomId,
+                                          .name = request.roomName,
+                                          .info = request.roomInfo}
+        };
         const std::string payload = nlohmann::json(event).dump();
         for (const auto &m : roomMembersRepo_.membersOf(roomId))
             sessions_.sendToUser(m.userId, payload);
 
         return roomId;
+    }
+
+    // Самоприсоединение к публичной комнате (POST /members/me).
+    // В отличие от inviteUser, вызывающий ещё НЕ член — проверяем joinPolicy, а не его роль.
+    std::optional<ChatError> joinRoom(const protocol::UserId userId, const protocol::RoomId roomId)
+    {
+        auto room = roomRepo_.findById(roomId);
+        if (!room)
+            return ChatError::RoomNotFound;
+
+        // Войти самостоятельно можно только в открытую комнату.
+        if (room->info.joinPolicy != protocol::rooms::JoinPolicy::Public)
+            return ChatError::PermissionError;
+
+        if (roomMembersRepo_.isMember(roomId, userId))
+            return ChatError::MemberAlready;
+
+        roomMembersRepo_.add(roomId, userId, protocol::rooms::MemberRole::Member, getCurrentTime());
+
+        // Оповещаем всех участников (включая вошедшего — для его мультидевайса).
+        protocol::ws::UserJoinedEvent event{.roomId = roomId, .userId = userId};
+        const std::string payload = nlohmann::json(event).dump();
+        for (const auto &m : roomMembersRepo_.membersOf(roomId))
+            sessions_.sendToUser(m.userId, payload);
+
+        return std::nullopt;
+    }
+
+    // Удаление комнаты целиком. Право — только у Owner.
+    std::optional<ChatError> deleteRoom(const protocol::UserId userId, const protocol::RoomId roomId)
+    {
+        auto member = roomMembersRepo_.get(roomId, userId);
+        if (!member)
+            return ChatError::NotAMember;
+        if (member->role != protocol::rooms::MemberRole::Owner)
+            return ChatError::PermissionError;
+
+        // Список участников собираем ДО удаления — после remove() он будет пуст.
+        const auto members = roomMembersRepo_.membersOf(roomId);
+
+        roomRepo_.remove(roomId); // CASCADE убирает участников и сообщения
+
+        protocol::ws::RoomDeletedEvent event{.roomId = roomId};
+        const std::string payload = nlohmann::json(event).dump();
+        for (const auto &m : members)
+            sessions_.sendToUser(m.userId, payload);
+
+        return std::nullopt;
+    }
+
+    // Исключение участника. Owner кикает любого; Admin — только Member.
+    // Нельзя кикнуть себя (для этого leaveRoom) и кого-то с ролью >= своей.
+    std::optional<ChatError> kickFromRoom(const protocol::UserId kicker, const protocol::UserId userForKick, const protocol::RoomId roomId)
+    {
+        if (kicker == userForKick)
+            return ChatError::PermissionError; // выход из комнаты — это leaveRoom
+
+        auto kickerMember = roomMembersRepo_.get(roomId, kicker);
+        if (!kickerMember)
+            return ChatError::NotAMember;
+        if (kickerMember->role != protocol::rooms::MemberRole::Owner && kickerMember->role != protocol::rooms::MemberRole::Admin)
+            return ChatError::PermissionError;
+
+        auto target = roomMembersRepo_.get(roomId, userForKick);
+        if (!target)
+            return ChatError::NotAMember; // цели нет в комнате
+
+        // Кикать можно только строго ниже по роли. У enum меньшее значение = выше
+        // привилегия (Owner=0, Admin=1, Member=2), поэтому target должен быть "больше".
+        if (target->role <= kickerMember->role)
+            return ChatError::PermissionError;
+
+        roomMembersRepo_.remove(roomId, userForKick);
+
+        // Оповещаем оставшихся (и самого кикнутого — его клиент уберёт комнату).
+        protocol::ws::UserLeftEvent event{.roomId = roomId, .userId = userForKick};
+        const std::string payload = nlohmann::json(event).dump();
+        sessions_.sendToUser(userForKick, payload);
+        for (const auto &m : roomMembersRepo_.membersOf(roomId))
+            sessions_.sendToUser(m.userId, payload);
+
+        return std::nullopt;
     }
 
     std::optional<ChatError> leaveRoom(const protocol::UserId sender, const protocol::RoomId roomId)
@@ -284,24 +392,25 @@ public: // Actions with responses
         if (!member)
             return ChatError::NotAMember; // и без того не в комнате — нечего делать
 
-        // Особая обработка для Owner'а
-        if (member->role == MemberRole::Owner)
+        // Особая обработка для Owner'а: владение нельзя оставить "висящим".
+        if (member->role == protocol::rooms::MemberRole::Owner)
         {
-            // Политика: запретить owner'у выходить, не передав права.
-            // Для прототипа — можно сделать выход без передачи, но тогда комната станет "сиротской".
-            // Я бы передал права на самого старого admin'а, либо запретил.
-            // Здесь — пример с передачей или удалением комнаты.
-
             auto members = roomMembersRepo_.membersOf(roomId);
-            // Ищем кого-нибудь, кроме owner'а
+
+            // Передаём владение первому попавшемуся Admin'у; если админов нет —
+            // первому любому участнику, кроме самого уходящего owner'а.
             std::optional<protocol::UserId> newOwner;
             for (const auto &m : members)
             {
-                if (m.userId != sender)
+                if (m.userId == sender)
+                    continue;
+                if (m.role == protocol::rooms::MemberRole::Admin)
                 {
-                    newOwner = m.userId;
+                    newOwner = m.userId; // нашли админа — он в приоритете, выходим
                     break;
                 }
+                if (!newOwner)
+                    newOwner = m.userId; // запасной вариант — первый не-owner
             }
 
             if (!newOwner)
@@ -311,9 +420,7 @@ public: // Actions with responses
                 return std::nullopt;
             }
 
-            // Передаём права
-            // TODO:
-            // roomMembersRepo_.updateRole(request.roomId, *newOwner, MemberRole::Owner);
+            roomMembersRepo_.updateRole(roomId, *newOwner, protocol::rooms::MemberRole::Owner);
         }
 
         // Убираем самого юзера
