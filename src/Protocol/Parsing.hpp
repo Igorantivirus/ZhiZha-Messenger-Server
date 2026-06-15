@@ -82,13 +82,15 @@ NLOHMANN_JSON_MAGIC_ENUM(ErrorCode)
 
 namespace protocol::api
 {
+NLOHMANN_JSON_MAGIC_ENUM(ServerStatus)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ErrorResponse, code, message)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(InfoResponse, serverName, version, wsEndpoint, accessTtl, refreshTtl)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(HealthResponse, status)
 } // namespace protocol::api
 
 namespace protocol::auth
 {
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RegisterRequest, username, password, displayName)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RegisterRequest, username, password, displayName, birthDate, country)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LoginRequest, username, password)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RefreshRequest, refreshToken)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(LogoutRequest, refreshToken)
@@ -100,14 +102,17 @@ namespace protocol::rooms
 NLOHMANN_JSON_MAGIC_ENUM(RoomKind)
 NLOHMANN_JSON_MAGIC_ENUM(JoinPolicy)
 NLOHMANN_JSON_MAGIC_ENUM(WritePolicy)
+NLOHMANN_JSON_MAGIC_ENUM(MemberRole)
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomInfo, kind, joinPolicy, writePolicy)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Room, id, name, info)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Member, userId)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Member, userId, display, role)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(CreateRoomRequest, roomName, roomInfo, invitedUsers)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(InviteMemberRequest, invitedId)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(CreateRoomResponse, roomId)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(GetRoomsResponse, rooms, hasMore, postMessageSenders)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ChangeRoomRequest, newRoomInfo)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomsLoopByExampleResponse, users)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomInfoResponse, room)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomsMembersInfoResponse, members)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomInformation, roomInfo, lastMessage)
@@ -121,10 +126,12 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MessagesResponse, roomId, messages, hasMore)
 
 namespace protocol::users
 {
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserDisplayInfo, username, displayname)
+NLOHMANN_JSON_MAGIC_ENUM(Country)
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MeResponse, userId, username, displayname, registerTime)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserResponse, userId, username, displayname)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserDisplayInfo, username, displayname, birthDate, country, registerTime)
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MeResponse, userId, username, displayname, registerTime, birthDate, country)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserResponse, userId, username, displayname, registerTime, birthDate, country)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UsersLoopByExampleResponse, users)
 } // namespace protocol::users
 
