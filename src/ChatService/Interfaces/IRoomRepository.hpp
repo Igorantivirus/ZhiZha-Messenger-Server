@@ -18,4 +18,8 @@ public:
     virtual std::optional<Room> findById(protocol::RoomId id) const = 0;
     virtual std::vector<Room> findForUser(const protocol::UserId userId, const unsigned limit, std::optional<protocol::RoomId> lastLoaded) const = 0;
     virtual void remove(const protocol::RoomId id) = 0;
+    virtual std::vector<Room> getRoomsByQuery(std::string query, unsigned limit) = 0;
+    // Обновляет имя и политики комнаты (createdAt не трогает).
+    // Возвращает true, если комната с таким id существовала и была обновлена.
+    virtual bool changeRoomsInfo(const protocol::rooms::Room &newInfo) = 0;
 };

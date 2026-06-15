@@ -4,6 +4,7 @@
 #include <SQLiteCpp/SQLiteCpp.h>
 
 #include <memory>
+#include <string>
 #include <string_view>
 
 #include <ChatService/Interfaces/IRoomRepository.hpp>
@@ -58,11 +59,41 @@ public:
         return result;
     }
 
+    bool changeRoomsInfo(const protocol::rooms::Room &newInfo) override
+    {
+        SQLite::Statement stmt(*db_, UPDATE_ROOM_INFO_COMMAND.data());
+        stmt.bind(1, newInfo.name);
+        stmt.bind(2, roomKindToString(newInfo.info.kind));
+        stmt.bind(3, joinPolicyToString(newInfo.info.joinPolicy));
+        stmt.bind(4, writePolicyToString(newInfo.info.writePolicy));
+        stmt.bind(5, static_cast<std::int64_t>(newInfo.id));
+        return stmt.exec() > 0;
+    }
+
     void remove(const protocol::RoomId id) override
     {
         SQLite::Statement stmt(*db_, DELETE_ROOM_COMMAND.data());
         stmt.bind(1, static_cast<std::int64_t>(id));
         stmt.exec();
+    }
+
+    std::vector<Room> getRoomsByQuery(std::string query, unsigned limit) override
+    {
+        if (query.empty() || limit == 0)
+            return {};
+
+        const std::string likePattern = "%" + escapeLike(query) + "%";
+
+        SQLite::Statement stmt(*db_, SELECT_BY_NAME_LIKE.data());
+        stmt.bind(1, likePattern);
+        stmt.bind(2, limit);
+
+        std::vector<Room> results;
+        results.reserve(limit);
+        while (stmt.executeStep())
+            results.push_back(rowToRoom(stmt));
+
+        return results;
     }
 
 private:
@@ -102,6 +133,20 @@ private:
         auto casted = magic_enum::enum_cast<protocol::rooms::JoinPolicy>(s);
         return casted ? casted.value() : protocol::rooms::JoinPolicy::Closed;
     }
+    // Экранирование спецсимволов LIKE (%, _, \) — чтобы поиск "100%" не превращался в wildcard.
+    static std::string escapeLike(const std::string &s)
+    {
+        std::string result;
+        result.reserve(s.size());
+        for (char c : s)
+        {
+            if (c == '%' || c == '_' || c == '\\')
+                result += '\\';
+            result += c;
+        }
+        return result;
+    }
+
     static std::string writePolicyToString(protocol::rooms::WritePolicy p)
     {
         return std::string(magic_enum::enum_name(p));
@@ -151,6 +196,19 @@ private:
         "WHERE rm.userId = ? AND r.id > ? "
         "ORDER BY r.id "
         "LIMIT ?";
+
+    // Публичный поиск комнат по имени — только комнаты с открытым присоединением (joinPolicy = 'Public').
+    static constexpr const std::string_view SELECT_BY_NAME_LIKE =
+        "SELECT id, name, kind, joinPolicy, writePolicy, createdAt "
+        "FROM rooms "
+        "WHERE name LIKE ? ESCAPE '\\' AND joinPolicy = 'Public' "
+        "ORDER BY name "
+        "LIMIT ?";
+
+    // Обновление имени и политик комнаты. createdAt намеренно не трогаем.
+    static constexpr const std::string_view UPDATE_ROOM_INFO_COMMAND =
+        "UPDATE rooms SET name = ?, kind = ?, joinPolicy = ?, writePolicy = ? "
+        "WHERE id = ?";
 
     static constexpr const std::string_view DELETE_ROOM_COMMAND =
         "DELETE FROM rooms WHERE id = ?";
