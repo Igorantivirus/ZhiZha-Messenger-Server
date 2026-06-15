@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ChatService/Types/MemberRole.hpp"
+#include "Protocol/Rooms.hpp"
 #include "magic_enum/magic_enum.hpp"
 #include <SQLiteCpp/SQLiteCpp.h>
 
@@ -21,7 +21,7 @@ public:
 
     void add(const protocol::RoomId roomId,
              const protocol::UserId userId,
-             const MemberRole role,
+             const protocol::rooms::MemberRole role,
              std::time_t joinedAt) override
     {
         SQLite::Statement insert(*db_, INSERT_MEMBER_COMMAND.data());
@@ -71,6 +71,17 @@ public:
         return std::nullopt;
     }
 
+    void updateRole(const protocol::RoomId roomId,
+                    const protocol::UserId userId,
+                    const protocol::rooms::MemberRole role) override
+    {
+        SQLite::Statement stmt(*db_, UPDATE_ROLE_COMMAND.data());
+        stmt.bind(1, memberRoleToString(role));
+        stmt.bind(2, static_cast<std::int64_t>(roomId));
+        stmt.bind(3, static_cast<std::int64_t>(userId));
+        stmt.exec();
+    }
+
     void updateLastRead(const protocol::RoomId roomId,
                         const protocol::UserId userId,
                         const protocol::MessageId lastReadMessageId) override
@@ -96,14 +107,14 @@ private:
         return m;
     }
 
-    static std::string memberRoleToString(MemberRole r)
+    static std::string memberRoleToString(protocol::rooms::MemberRole r)
     {
         return std::string(magic_enum::enum_name(r));
     }
-    static MemberRole memberRoleFromString(const std::string &s)
+    static protocol::rooms::MemberRole memberRoleFromString(const std::string &s)
     {
-        auto casted = magic_enum::enum_cast<MemberRole>(s);
-        return casted ? casted.value() : MemberRole::Member;
+        auto casted = magic_enum::enum_cast<protocol::rooms::MemberRole>(s);
+        return casted ? casted.value() : protocol::rooms::MemberRole::Member;
     }
 
     std::shared_ptr<SQLite::Database> db_;
@@ -148,6 +159,9 @@ private:
     static constexpr std::string_view SELECT_MEMBER_COMMAND =
         "SELECT roomId, userId, role, joinedAt, lastReadMessageId "
         "FROM roomMembers WHERE roomId = ? AND userId = ?";
+
+    static constexpr std::string_view UPDATE_ROLE_COMMAND =
+        "UPDATE roomMembers SET role = ? WHERE roomId = ? AND userId = ?";
 
     // MAX гарантирует "только вперёд": если присылают меньший id —
     // позиция не откатывается.
