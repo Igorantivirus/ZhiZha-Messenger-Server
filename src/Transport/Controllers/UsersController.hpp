@@ -2,6 +2,7 @@
 
 #include "Protocol/ErrorCode.hpp"
 #include "Protocol/Types.hpp"
+#include "Utils/QueryParamsHelper.hpp"
 #include <crow/crow.h>
 
 #include <Utils/BindMethod.hpp>
@@ -10,6 +11,7 @@
 #include <Auth/Interfaces/IUserRepository.hpp>
 #include <Protocol/Users.hpp>
 #include <Transport/HttpHelpers.hpp>
+#include <optional>
 #include <ranges>
 #include <unordered_map>
 
@@ -25,9 +27,9 @@ public:
 
     void registerRoutes()
     {
-        CROW_ROUTE(app_, "/api/v1/me")(utils::bindMethod(this, &UsersController::handleGetMe));
+        CROW_ROUTE(app_, "/api/v1/users/me").methods("GET"_method)(utils::bindMethod(this, &UsersController::handleGetMe));
         CROW_ROUTE(app_, "/api/v1/users/loop").methods("GET"_method)(utils::bindMethod(this, &UsersController::handleLoop));
-        CROW_ROUTE(app_, "/api/v1/users/<uint>")(utils::bindMethod(this, &UsersController::handleGetUser));
+        CROW_ROUTE(app_, "/api/v1/users/<uint>").methods("GET"_method)(utils::bindMethod(this, &UsersController::handleGetUser));
     }
 
 private:
@@ -42,21 +44,24 @@ private:
         if (!userId)
             return HttpHelpers::unauthorizedResponse();
 
-        auto query = req.url_params.get("query"); // const char* или nullptr
-        auto limit = req.url_params.get("limit");
+        std::optional<std::string> query = utils::parseQuery<std::string>(req.url_params.get("query"));
+        std::optional<unsigned> limit = utils::parseQuery<unsigned>(req.url_params.get("limit"));
 
         if (!query || !limit)
             return HttpHelpers::errorResponse(400, protocol::ErrorCode::MissingParams, "Missing params: query or limit.");
 
-        auto users = userRepo_.findUsersByQuery(query, std::atoi(limit));
-        if (!users)
-            return HttpHelpers::errorResponse(500, protocol::ErrorCode::InternalError, "Error of generate users list.");
+        auto users = userRepo_.findUsersByQuery(std::move(query.value()), std::move(limit.value()));
 
         protocol::users::UsersLoopByExampleResponse resp;
-        resp.users = users.value() | std::views::transform([](const User &user) -> std::pair<protocol::UserId, protocol::users::UserDisplayInfo>
+        resp.users = users | std::views::transform([](const User &user) -> std::pair<protocol::UserId, protocol::users::UserDisplayInfo>
         {
             return std::pair<protocol::UserId, protocol::users::UserDisplayInfo>{
-                user.id, protocol::users::UserDisplayInfo{.username = user.username, .displayname = user.displayeName}
+                user.id, protocol::users::UserDisplayInfo{
+                    .username = user.username,
+                    .displayname = user.displayeName,
+                    .birthDate = user.birthDate,
+                    .country = user.country,
+                    .registerTime = user.registerTime}
             };
         }) | std::ranges::to<std::unordered_map<protocol::UserId, protocol::users::UserDisplayInfo>>();
         return HttpHelpers::jsonResponse(200, resp);
@@ -76,7 +81,9 @@ private:
             .userId = user->id,
             .username = user->username,
             .displayname = user->displayeName,
-            .registerTime = user->registerTime};
+            .registerTime = user->registerTime,
+            .birthDate = user->birthDate,
+            .country = user->country};
         return HttpHelpers::jsonResponse(200, dto);
     }
 
@@ -93,7 +100,10 @@ private:
         protocol::users::UserResponse dto{
             .userId = user->id,
             .username = user->username,
-            .displayname = user->displayeName};
+            .displayname = user->displayeName,
+            .registerTime = user->registerTime,
+            .birthDate = user->birthDate,
+            .country = user->country};
         return HttpHelpers::jsonResponse(200, dto);
     }
 };
