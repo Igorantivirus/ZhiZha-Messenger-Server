@@ -4,6 +4,7 @@
 #include <string>
 
 #include "Types.hpp"
+#include "Users.hpp"
 
 // клиент -> сервер
 namespace protocol::auth
@@ -13,6 +14,8 @@ struct RegisterRequest
     std::string username;
     std::string password;
     std::string displayName;
+    std::time_t birthDate;   // дата рождения (не валидируется)
+    users::Country country;  // страна пользователя
 };
 
 struct LoginRequest
