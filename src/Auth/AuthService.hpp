@@ -24,7 +24,7 @@ public:
     }
 
     // Регистрация
-    std::expected<AuthSuccess, AuthError> registerUser(const std::string &username, const std::string &password, const std::string &displayName)
+    std::expected<AuthSuccess, AuthError> registerUser(const std::string &username, const std::string &password, const std::string &displayName, const std::time_t birthDate, const protocol::users::Country country)
     {
         if (!validator_.isValidUsername(username))
             return std::unexpected(AuthError::UsernameValidation);
@@ -35,7 +35,7 @@ public:
 
         std::string passwordHash = hasher_.hash(password);
 
-        protocol::UserId newId = users_.create(username, displayName, passwordHash);
+        protocol::UserId newId = users_.create(username, displayName, passwordHash, birthDate, country);
 
         return tokens_.issuePair(newId);
     }
