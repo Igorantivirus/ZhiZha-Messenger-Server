@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "Protocol/Types.hpp"
 #include "Types.hpp"
 #include "Users.hpp"
 #include "Messages.hpp"
@@ -32,6 +33,13 @@ enum class WritePolicy
     Everyone,  // Все
     AdminsOnly // Только админы
 };
+// Роль участника в комнате
+enum class MemberRole
+{
+    Owner,  // создатель — полные права
+    Admin,  // администратор
+    Member  // обычный участник
+};
 // Информация о комнате
 struct RoomInfo
 {
@@ -55,10 +63,13 @@ struct RoomInformation
     messages::Message lastMessage;
 };
 
-// Информация об участнике
+// Информация об участнике. Несёт display-инфо (username+displayname), чтобы
+// клиент отрисовал список участников без доп. запросов по каждому id.
 struct Member
 {
     UserId userId;
+    users::UserDisplayInfo display;
+    MemberRole role;
 };
 
 } // namespace protocol::rooms
@@ -72,6 +83,11 @@ struct CreateRoomRequest
     std::string roomName;
     RoomInfo roomInfo;
     std::vector<UserId> invitedUsers;
+};
+
+struct ChangeRoomRequest
+{
+    Room newRoomInfo;
 };
 
 struct InviteMemberRequest
@@ -100,6 +116,11 @@ struct GetRoomsResponse
 struct RoomInfoResponse
 {
     Room room;
+};
+
+struct RoomsLoopByExampleResponse
+{
+    std::unordered_map<RoomId, Room> users;
 };
 
 struct RoomsMembersInfoResponse
