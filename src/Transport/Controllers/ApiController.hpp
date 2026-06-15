@@ -18,8 +18,8 @@ public:
 
     void registerRoutes()
     {
-        CROW_ROUTE(app_, "/api/v1/health")(utils::bindMethod(this, &ApiController::handleHealth));
-        CROW_ROUTE(app_, "/api/v1/info")(utils::bindMethod(this, &ApiController::handleInfo));
+        CROW_ROUTE(app_, "/api/v1/health").methods("GET"_method)(utils::bindMethod(this, &ApiController::handleHealth));
+        CROW_ROUTE(app_, "/api/v1/info").methods("GET"_method)(utils::bindMethod(this, &ApiController::handleInfo));
     }
 
 private:
@@ -30,7 +30,8 @@ private:
 private:
     crow::response handleHealth() const
     {
-        return crow::response(200, R"({"status":"ok"})");
+        protocol::api::HealthResponse dto{.status = protocol::api::ServerStatus::Ok};
+        return HttpHelpers::jsonResponse(200, dto);
     }
 
     crow::response handleInfo() const
