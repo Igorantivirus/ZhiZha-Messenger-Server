@@ -4,9 +4,11 @@
 #include <ctime>
 #include <memory>
 #include <optional>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
+#include "magic_enum/magic_enum.hpp"
 #include <SQLiteCpp/SQLiteCpp.h>
 
 #include <Auth/Interfaces/IUserRepository.hpp>
@@ -40,7 +42,7 @@ public:
         return std::nullopt;
     }
 
-    std::optional<std::vector<User>> findUsersByQuery(std::string query, unsigned limit) const override
+    std::vector<User> findUsersByQuery(std::string query, unsigned limit) const override
     {
         if (query.empty() || limit == 0)
             return std::vector<User>{};
@@ -61,8 +63,9 @@ public:
         return results;
     }
 
-    protocol::UserId create(const std::string &username, const std::string &displayName, const std::string &passwordHash) override
+    protocol::UserId create(const std::string &username, const std::string &displayName, const std::string &passwordHash, const std::time_t birthDate, const protocol::users::Country country) override
     {
+        // registerTime — серверная истина, ставим сами (клиент не присылает).
         const std::int64_t now = static_cast<int64_t>(std::time(nullptr));
 
         SQLite::Statement insert(*db_, INSERT_USER_COMMAND.data());
@@ -70,6 +73,8 @@ public:
         insert.bind(2, passwordHash);
         insert.bind(3, now);
         insert.bind(4, displayName);
+        insert.bind(5, static_cast<std::int64_t>(birthDate));
+        insert.bind(6, countryToString(country));
 
         insert.exec();
         return db_->getLastInsertRowid(); // возвращает rowid (он же id)
@@ -155,7 +160,20 @@ private:
         user.passwordHash = query.getColumn(2).getString();
         user.registerTime = query.getColumn(3).getInt64();
         user.displayeName = query.getColumn(4).getString();
+        user.birthDate = static_cast<std::time_t>(query.getColumn(5).getInt64());
+        user.country = countryFromString(query.getColumn(6).getString());
         return user;
+    }
+
+    // Country хранится строкой (имя enum через magic_enum), как роли/политики комнат.
+    static std::string countryToString(protocol::users::Country c)
+    {
+        return std::string(magic_enum::enum_name(c));
+    }
+    static protocol::users::Country countryFromString(const std::string &s)
+    {
+        auto casted = magic_enum::enum_cast<protocol::users::Country>(s);
+        return casted ? casted.value() : protocol::users::Country::None;
     }
 
     // Score: чем раньше встретилось совпадение и чем короче поле — тем выше.
@@ -195,19 +213,21 @@ private: // SQL-команды
         "username TEXT NOT NULL UNIQUE,"
         "passwordHash TEXT NOT NULL,"
         "registerTime INTEGER NOT NULL,"
-        "displayeName TEXT NOT NULL"
+        "displayeName TEXT NOT NULL,"
+        "birthDate INTEGER NOT NULL,"
+        "country TEXT NOT NULL"
         ")";
 
     static constexpr std::string_view INSERT_USER_COMMAND =
-        "INSERT INTO users (username, passwordHash, registerTime, displayeName) "
-        "VALUES (?, ?, ?, ?)";
+        "INSERT INTO users (username, passwordHash, registerTime, displayeName, birthDate, country) "
+        "VALUES (?, ?, ?, ?, ?, ?)";
 
     static constexpr std::string_view SELECT_BY_USERNAME =
-        "SELECT id, username, passwordHash, registerTime, displayeName "
+        "SELECT id, username, passwordHash, registerTime, displayeName, birthDate, country "
         "FROM users WHERE username = ?";
 
     static constexpr std::string_view SELECT_BY_ID =
-        "SELECT id, username, passwordHash, registerTime, displayeName "
+        "SELECT id, username, passwordHash, registerTime, displayeName, birthDate, country "
         "FROM users WHERE id = ?";
 
     static constexpr std::string_view UPDATE_USERNAME_COMMAND =
@@ -217,10 +237,10 @@ private: // SQL-команды
         "UPDATE users SET passwordHash = ? WHERE id = ?";
 
     static constexpr std::string_view SELECT_BY_DISPLAYNAME_LIKE =
-        "SELECT id, username, passwordHash, registerTime, displayeName "
+        "SELECT id, username, passwordHash, registerTime, displayeName, birthDate, country "
         "FROM users WHERE displayeName LIKE ? ESCAPE '\\'";
 
     static constexpr std::string_view SELECT_BY_USERNAME_LIKE =
-        "SELECT id, username, passwordHash, registerTime, displayeName "
+        "SELECT id, username, passwordHash, registerTime, displayeName, birthDate, country "
         "FROM users WHERE username LIKE ? ESCAPE '\\'";
 };
