@@ -3,7 +3,6 @@
 
 #include "Utils/BindMethod.hpp"
 #include <cstdint>
-#include <iostream>
 #include <optional>
 #include <string>
 #include <variant>
@@ -60,7 +59,6 @@ private:
     // Crow перенесёт его в connection.userdata(), и оно доживёт до onclose.
     bool onAccept(const crow::request &req, void **userdata)
     {
-        std::cout << "Accept\n" << '\n';
         std::optional<protocol::UserId> userId = extractUserId(req);
         if (!userId)
             return false;
@@ -71,7 +69,6 @@ private:
 
     void onOpen(crow::websocket::connection &conn)
     {
-        std::cout << "Open\n" << '\n';
         const auto userId = userIdOf(conn);
         if (!userId)
         {
