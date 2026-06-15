@@ -2,15 +2,14 @@
 
 #include <ctime>
 
+#include <Protocol/Rooms.hpp>
 #include <Protocol/Types.hpp>
-
-#include "MemberRole.hpp"
 
 struct RoomMember
 {
     protocol::RoomId roomId;
     protocol::UserId userId;
     std::time_t joinedAt;
-    MemberRole role;
+    protocol::rooms::MemberRole role;
     protocol::MessageId lastReadMessageId;
 };
