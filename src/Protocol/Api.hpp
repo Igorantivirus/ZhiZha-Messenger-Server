@@ -7,12 +7,27 @@
 
 namespace protocol::api
 {
+    enum class ServerStatus
+    {
+        Ok,
+        Failed,
+        Serviced 
+    };
+}
+
+namespace protocol::api
+{
 
 // Тело ошибки для HTTP-ответов (на известном пути type не нужен).
 struct ErrorResponse
 {
     ErrorCode code;      // машинно-читаемый код
     std::string message; // человеческий текст для UI
+};
+
+struct HealthResponse
+{
+    ServerStatus status;
 };
 
 // discovery-endpoint: клиент перед коннектом узнаёт, куда ходить.
