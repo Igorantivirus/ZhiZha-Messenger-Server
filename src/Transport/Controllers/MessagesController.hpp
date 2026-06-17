@@ -88,10 +88,11 @@ private:
                 if (!user)
                     continue;
                 resp.senders[msg.fromUserId] = protocol::users::UserDisplayInfo{
-                    .username = std::move(user->username),
-                    .displayname = std::move(user->displayeName),
-                    .birthDate = user->birthDate,
-                    .country = user->country,
+                    .info = {
+                        .username = std::move(user->username),
+                        .displayname = std::move(user->displayeName),
+                        .birthDate = user->birthDate,
+                        .country = user->country},
                     .registerTime = user->registerTime};
             }
         }

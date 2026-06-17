@@ -94,11 +94,11 @@ private:
             if (!user)
                 continue;
             protocol::users::UserDisplayInfo udi;
-            udi.birthDate = user->birthDate;
-            udi.country = user->country;
+            udi.info.birthDate = user->birthDate;
+            udi.info.country = user->country;
             udi.registerTime = user->registerTime;
-            udi.displayname = std::move(user->displayeName);
-            udi.username = std::move(user->username);
+            udi.info.displayname = std::move(user->displayeName);
+            udi.info.username = std::move(user->username);
             resp.postMessageSenders[room.lastMessage.fromUserId] = std::move(udi);
         }
 
@@ -215,11 +215,11 @@ private:
             protocol::users::UserDisplayInfo display;
             if (auto user = auth_.getUserRepository().findUserById(member.userId))
             {
-                display.birthDate = user->birthDate;
-                display.country = user->country;
+                display.info.birthDate = user->birthDate;
+                display.info.country = user->country;
                 display.registerTime = user->registerTime;
-                display.username = std::move(user->username);
-                display.displayname = std::move(user->displayeName);
+                display.info.username = std::move(user->username);
+                display.info.displayname = std::move(user->displayeName);
             }
             return protocol::rooms::Member{
                 .userId = member.userId,
