@@ -6,7 +6,6 @@
 #include <unordered_map>
 
 #include "Types.hpp"
-#include "Types.hpp"
 
 // вспомогательные структуры
 namespace protocol::users
@@ -29,14 +28,19 @@ enum class Country : std::uint8_t
     Br    // Бразилия
 };
 
+struct UserEditableInfo
+{
+    std::string username;
+    std::string displayname;
+    std::time_t birthDate;
+    Country country;
+};
+
 // Публичная информация о пользователе. Вся информация о юзере публичная,
 // поэтому здесь же несём дату рождения, страну и время регистрации.
 struct UserDisplayInfo
 {
-    std::string username;
-    std::string displayname;
-    std::time_t birthDate;    // дата рождения (присылается клиентом, не валидируется)
-    Country country;          // страна пользователя
+    UserEditableInfo info;
     std::time_t registerTime; // время первой регистрации (ставит сервер)
 };
 } // namespace protocol::users
@@ -44,6 +48,11 @@ struct UserDisplayInfo
 // клиент -> сервер
 namespace protocol::users
 {
+struct ChangeUserRequest
+{
+    UserEditableInfo newInfo;
+};
+
 } // namespace protocol::users
 
 // сервер -> клиент
@@ -52,20 +61,12 @@ namespace protocol::users
 struct MeResponse
 {
     UserId userId;
-    std::string username;
-    std::string displayname;
-    std::time_t registerTime;
-    std::time_t birthDate;
-    Country country;
+    UserDisplayInfo display;
 };
 struct UserResponse
 {
     UserId userId;
-    std::string username;
-    std::string displayname;
-    std::time_t registerTime;
-    std::time_t birthDate;
-    Country country;
+    UserDisplayInfo display;
 };
 
 struct UsersLoopByExampleResponse

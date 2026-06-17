@@ -128,11 +128,13 @@ namespace protocol::users
 {
 NLOHMANN_JSON_MAGIC_ENUM(Country)
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserDisplayInfo, username, displayname, birthDate, country, registerTime)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserEditableInfo, username, displayname, birthDate, country)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserDisplayInfo, info, registerTime)
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MeResponse, userId, username, displayname, registerTime, birthDate, country)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserResponse, userId, username, displayname, registerTime, birthDate, country)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MeResponse, userId, display)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserResponse, userId, display)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UsersLoopByExampleResponse, users)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ChangeUserRequest, newInfo)
 } // namespace protocol::users
 
 namespace protocol::ws
