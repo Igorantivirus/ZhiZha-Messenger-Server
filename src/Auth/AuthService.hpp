@@ -40,6 +40,27 @@ public:
         return tokens_.issuePair(newId);
     }
 
+    // Редактирование своего профиля (username, displayName, дата рождения, страна).
+    // username, если меняется, проверяется на валидность и уникальность.
+    std::optional<AuthError> updateUser(const protocol::UserId id, const protocol::users::UserEditableInfo &newInfo)
+    {
+        auto current = users_.findUserById(id);
+        if (!current)
+            return AuthError::InvalidCredentials; // юзера из токена нет — токен протух
+
+        // username проверяем только если он реально меняется.
+        if (newInfo.username != current->username)
+        {
+            if (!validator_.isValidUsername(newInfo.username))
+                return AuthError::UsernameValidation;
+            if (users_.findUserByUsername(newInfo.username).has_value())
+                return AuthError::UsernameTaken;
+        }
+
+        users_.updateEditableInfo(id, newInfo.username, newInfo.displayname, newInfo.birthDate, newInfo.country);
+        return std::nullopt;
+    }
+
     // Логин
     std::expected<AuthSuccess, AuthError> login(const std::string &username, const std::string &password)
     {
