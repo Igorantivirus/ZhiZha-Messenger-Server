@@ -21,4 +21,8 @@ public:
 
     virtual bool updateUsername(const protocol::UserId id, const std::string newUsername) = 0;
     virtual bool updatePasswordHash(const protocol::UserId id, const std::string newPasswordHash) = 0;
+
+    // Обновляет редактируемую пользователем информацию (username, displayName,
+    // дата рождения, страна). registerTime и passwordHash не трогает.
+    virtual bool updateEditableInfo(const protocol::UserId id, const std::string &newUsername, const std::string &newDisplayName, const std::time_t birthDate, const protocol::users::Country country) = 0;
 };

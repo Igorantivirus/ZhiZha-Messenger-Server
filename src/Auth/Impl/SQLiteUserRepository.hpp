@@ -98,6 +98,18 @@ public:
         return stmt.exec() > 0;
     }
 
+    bool updateEditableInfo(const protocol::UserId id, const std::string &newUsername, const std::string &newDisplayName, const std::time_t birthDate, const protocol::users::Country country) override
+    {
+        SQLite::Statement stmt(*db_, UPDATE_EDITABLE_INFO_COMMAND.data());
+        stmt.bind(1, newUsername);
+        stmt.bind(2, newDisplayName);
+        stmt.bind(3, static_cast<std::int64_t>(birthDate));
+        stmt.bind(4, countryToString(country));
+        stmt.bind(5, static_cast<std::int64_t>(id));
+
+        return stmt.exec() > 0;
+    }
+
 private:
     // Общая БД всего сервера — владение разделяется через shared_ptr.
     std::shared_ptr<SQLite::Database> db_;
@@ -235,6 +247,10 @@ private: // SQL-команды
 
     static constexpr std::string_view UPDATE_PASSWORD_HASH_COMMAND =
         "UPDATE users SET passwordHash = ? WHERE id = ?";
+
+    static constexpr std::string_view UPDATE_EDITABLE_INFO_COMMAND =
+        "UPDATE users SET username = ?, displayeName = ?, birthDate = ?, country = ? "
+        "WHERE id = ?";
 
     static constexpr std::string_view SELECT_BY_DISPLAYNAME_LIKE =
         "SELECT id, username, passwordHash, registerTime, displayeName, birthDate, country "
