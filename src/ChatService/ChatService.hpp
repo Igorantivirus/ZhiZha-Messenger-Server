@@ -254,6 +254,7 @@ public: // Actions with responses
 
             RoomWithLastMessage res;
             res.room = std::move(room);
+            res.participantsCount = roomMembersRepo_.countMembers(roomId);
             auto msg = messageRepo_.findLastMessageInRoom(roomId);
             if (msg)
                 res.msg = std::move(msg.value());
