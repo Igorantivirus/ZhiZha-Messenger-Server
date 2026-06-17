@@ -65,6 +65,12 @@ struct RoomInformation
     std::uint32_t participantsCount; // число участников комнаты
 };
 
+struct UsersRoomInfo
+{
+    RoomInformation roomInfo;
+    MemberRole role;
+};
+
 // Информация об участнике. Несёт display-инфо (username+displayname), чтобы
 // клиент отрисовал список участников без доп. запросов по каждому id.
 struct Member
@@ -110,7 +116,7 @@ struct CreateRoomResponse
 
 struct GetRoomsResponse
 {
-    std::vector<RoomInformation> rooms;
+    std::vector<UsersRoomInfo> rooms;
     std::unordered_map<UserId, users::UserDisplayInfo> postMessageSenders;
     bool hasMore;
 };

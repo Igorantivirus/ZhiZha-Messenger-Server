@@ -33,7 +33,8 @@ enum class WsMessageType
     RoomDeleted, // комната удалена (несёт roomId)
     RoomUpdated, // изменилась информация о комнате (несёт Room)
     UserJoined,  // в комнату добавлен новый участник
-    UserLeft     // участник покинул комнату
+    UserLeft,    // участник покинул комнату
+    UserUpdated  // пользователь изменил свой профиль (несёт public-инфо)
 };
 struct Envelope
 {
@@ -147,6 +148,15 @@ struct UserLeftEvent
     WsMessageType type = WsMessageType::UserLeft;
     RoomId roomId = 0;
     UserId userId = 0;
+};
+
+// Пользователь изменил свой профиль. Несёт актуальную public-инфо, чтобы
+// клиенты-получатели обновили кеш без дополнительного HTTP-запроса.
+struct UserUpdatedEvent
+{
+    WsMessageType type = WsMessageType::UserUpdated;
+    UserId userId = 0;
+    users::UserDisplayInfo display;
 };
 
 } // namespace protocol::ws

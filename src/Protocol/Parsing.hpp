@@ -116,6 +116,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomsLoopByExampleResponse, users)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomInfoResponse, room)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomsMembersInfoResponse, members)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomInformation, roomInfo, lastMessage, participantsCount)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UsersRoomInfo, roomInfo, role)
 } // namespace protocol::rooms
 
 namespace protocol::messages
@@ -157,6 +158,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomDeletedEvent, type, roomId)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomUpdatedEvent, type, room)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserJoinedEvent, type, roomId, userId)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserLeftEvent, type, roomId, userId)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(UserUpdatedEvent, type, userId, display)
 } // namespace protocol::ws
 
 namespace protocol::ws
@@ -175,7 +177,7 @@ enum class WsParsingError : std::uint8_t
 using MessageFromClient = std::variant<Ping, ErrorMessage, SendMessageRequest>;
 using MessageFromServer = std::variant<Pong, ErrorMessage, NewMessageEvent, MessageAckEvent,
                                        RoomCreatedEvent, RoomDeletedEvent, RoomUpdatedEvent,
-                                       UserJoinedEvent, UserLeftEvent>;
+                                       UserJoinedEvent, UserLeftEvent, UserUpdatedEvent>;
 
 namespace
 {
@@ -228,6 +230,8 @@ inline std::expected<MessageFromServer, WsParsingError> parseMessageFromServer(s
             return decodeFromServer<UserJoinedEvent>(json);
         case WsMessageType::UserLeft:
             return decodeFromServer<UserLeftEvent>(json);
+        case WsMessageType::UserUpdated:
+            return decodeFromServer<UserUpdatedEvent>(json);
         default:
             return std::unexpected(WsParsingError::InvalidTypeValue);
         }
