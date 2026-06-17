@@ -27,7 +27,7 @@ public:
                std::time_t refreshTtl)
         : apiController_(app, accessTtl, refreshTtl),
           authController_(app, auth),
-          usersController_(app, auth, userRepo),
+          usersController_(app, auth, chat, userRepo),
           roomsController_(app, auth, chat, roomsRepo),
           messagesController_(app, auth, chat)
     {
