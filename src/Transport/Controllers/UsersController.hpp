@@ -9,6 +9,7 @@
 
 #include <Auth/AuthService.hpp>
 #include <Auth/Interfaces/IUserRepository.hpp>
+#include <ChatService/ChatService.hpp>
 #include <Protocol/Users.hpp>
 #include <Transport/HttpHelpers.hpp>
 #include <optional>
@@ -20,8 +21,9 @@ class UsersController
 public:
     UsersController(crow::SimpleApp &app,
                     AuthService &auth,
+                    ChatService &chat,
                     IUserRepository &userRepo)
-        : app_(app), auth_(auth), userRepo_(userRepo)
+        : app_(app), auth_(auth), chat_(chat), userRepo_(userRepo)
     {
     }
 
@@ -36,6 +38,7 @@ public:
 private:
     crow::SimpleApp &app_;
     AuthService &auth_;
+    ChatService &chat_;
     IUserRepository &userRepo_;
 
 private:
@@ -130,6 +133,15 @@ private:
         // Проверка username (валидность + уникальность) и запись — в AuthService.
         if (auto error = auth_.updateUser(*userId, dto.newInfo))
             return HttpHelpers::mapAuthError(error.value());
+
+        // Оповещаем по WS участников общих комнат об обновлённом профиле.
+        // registerTime берём из БД (в запросе его нет, он не меняется).
+        std::time_t registerTime = 0;
+        if (auto user = userRepo_.findUserById(*userId))
+            registerTime = user->registerTime;
+        chat_.broadcastUserUpdated(*userId, protocol::users::UserDisplayInfo{
+                                                .info = dto.newInfo,
+                                                .registerTime = registerTime});
 
         return crow::response(204);
     }

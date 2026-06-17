@@ -66,31 +66,34 @@ private:
         protocol::rooms::GetRoomsResponse resp;
         resp.hasMore = rooms->size() > limit;
 
-        resp.rooms = rooms.value() | std::views::transform([this](RoomWithLastMessage &rwlm) -> protocol::rooms::RoomInformation
+        resp.rooms = rooms.value() | std::views::transform([this](RoomWithLastMessage &rwlm) -> protocol::rooms::UsersRoomInfo
         {
-            protocol::rooms::RoomInformation res;
+            protocol::rooms::UsersRoomInfo res;
 
-            res.roomInfo.info = std::move(rwlm.room.info);
-            res.roomInfo.id = std::move(rwlm.room.id);
-            res.roomInfo.name = std::move(rwlm.room.name);
+            res.roomInfo.roomInfo.info = std::move(rwlm.room.info);
+            res.roomInfo.roomInfo.id = std::move(rwlm.room.id);
+            res.roomInfo.roomInfo.name = std::move(rwlm.room.name);
 
-            res.lastMessage.createdAt = std::move(rwlm.msg.createdAt);
-            res.lastMessage.fromUserId = std::move(rwlm.msg.fromUserId);
-            res.lastMessage.id = std::move(rwlm.msg.id);
-            res.lastMessage.text = std::move(rwlm.msg.text);
+            res.roomInfo.lastMessage.createdAt = std::move(rwlm.msg.createdAt);
+            res.roomInfo.lastMessage.fromUserId = std::move(rwlm.msg.fromUserId);
+            res.roomInfo.lastMessage.id = std::move(rwlm.msg.id);
+            res.roomInfo.lastMessage.text = std::move(rwlm.msg.text);
 
-            res.participantsCount = rwlm.participantsCount;
+            res.roomInfo.participantsCount = rwlm.participantsCount;
+
+            res.role = rwlm.role;
 
             return res;
-        }) | std::ranges::to<std::vector<protocol::rooms::RoomInformation>>();
+        }) | std::ranges::to<std::vector<protocol::rooms::UsersRoomInfo>>();
         if (resp.hasMore)
             resp.rooms.pop_back();
 
         for (const auto &room : resp.rooms)
         {
-            if (resp.postMessageSenders.contains(room.lastMessage.fromUserId))
+            const protocol::UserId senderId = room.roomInfo.lastMessage.fromUserId;
+            if (resp.postMessageSenders.contains(senderId))
                 continue;
-            auto user = auth_.getUserRepository().findUserById(room.lastMessage.fromUserId);
+            auto user = auth_.getUserRepository().findUserById(senderId);
             if (!user)
                 continue;
             protocol::users::UserDisplayInfo udi;
@@ -99,7 +102,7 @@ private:
             udi.registerTime = user->registerTime;
             udi.info.displayname = std::move(user->displayeName);
             udi.info.username = std::move(user->username);
-            resp.postMessageSenders[room.lastMessage.fromUserId] = std::move(udi);
+            resp.postMessageSenders[senderId] = std::move(udi);
         }
 
         return HttpHelpers::jsonResponse(200, resp);
