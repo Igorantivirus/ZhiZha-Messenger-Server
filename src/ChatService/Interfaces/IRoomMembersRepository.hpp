@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <ctime>
 #include <optional>
 #include <vector>
@@ -22,6 +23,9 @@ public:
 
     // Список всех участников комнаты (нужно для broadcast'а сообщения)
     virtual std::vector<RoomMember> membersOf(const protocol::RoomId roomId) const = 0;
+
+    // Число участников комнаты (дешевле membersOf().size() — не тянет строки)
+    virtual std::uint32_t countMembers(const protocol::RoomId roomId) const = 0;
 
     // Проверка членства (для авторизации действий — может ли он писать сюда?)
     virtual bool isMember(const protocol::RoomId roomId, protocol::UserId userId) const = 0;

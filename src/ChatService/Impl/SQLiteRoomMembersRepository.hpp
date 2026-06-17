@@ -52,6 +52,15 @@ public:
         return result;
     }
 
+    std::uint32_t countMembers(const protocol::RoomId roomId) const override
+    {
+        SQLite::Statement query(*db_, COUNT_MEMBERS_COMMAND.data());
+        query.bind(1, static_cast<std::int64_t>(roomId));
+        if (query.executeStep())
+            return static_cast<std::uint32_t>(query.getColumn(0).getInt64());
+        return 0;
+    }
+
     bool isMember(const protocol::RoomId roomId, protocol::UserId userId) const override
     {
         // Лёгкий запрос — только проверка существования, без полной выборки полей
@@ -150,6 +159,9 @@ private:
     static constexpr std::string_view SELECT_MEMBERS_OF_ROOM =
         "SELECT roomId, userId, role, joinedAt, lastReadMessageId "
         "FROM roomMembers WHERE roomId = ?";
+
+    static constexpr std::string_view COUNT_MEMBERS_COMMAND =
+        "SELECT COUNT(*) FROM roomMembers WHERE roomId = ?";
 
     // Самый лёгкий способ проверить членство — SELECT 1 LIMIT 1.
     // Не тащим из строки никаких полей, просто проверяем "есть ли".
