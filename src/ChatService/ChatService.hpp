@@ -18,6 +18,7 @@
 #include <Sessions/SessionManager.hpp>
 #include <optional>
 #include <ranges>
+#include <unordered_set>
 
 #include "Types/ChatError.hpp"
 #include "Types/MessagePage.hpp"
@@ -47,6 +48,26 @@ public: // Actions without answers
     }
     void onUserDisconnected(protocol::UserId userId)
     {
+    }
+
+    // Оповещает об обновлении профиля всех, кто состоит с этим юзером хотя бы в
+    // одной общей комнате (а также его собственные устройства — для мультидевайса).
+    // display готовит транспорт (имена живут в Auth), сюда приходит уже собранным.
+    void broadcastUserUpdated(const protocol::UserId userId, const protocol::users::UserDisplayInfo &display)
+    {
+        protocol::ws::UserUpdatedEvent event{.userId = userId, .display = display};
+        const std::string payload = nlohmann::json(event).dump();
+
+        // Дедуп получателей: один юзер может делить с нами несколько комнат.
+        // Сам обновившийся тоже входит (membersOf включает его) — получит на
+        // другие устройства.
+        std::unordered_set<protocol::UserId> recipients;
+        for (const protocol::RoomId roomId : roomMembersRepo_.roomIdsOfUser(userId))
+            for (const auto &m : roomMembersRepo_.membersOf(roomId))
+                recipients.insert(m.userId);
+
+        for (const protocol::UserId recipient : recipients)
+            sessions_.sendToUser(recipient, payload);
     }
 
     std::expected<protocol::MessageId, ChatError> onSendMessage(const protocol::UserId sender, crow::websocket::connection &senderConn, const protocol::ws::SendMessageRequest &request)
@@ -247,7 +268,7 @@ public: // Actions with responses
     {
         auto rooms = roomRepo_.findForUser(userId, limit, lastLoadedId);
 
-        return rooms | std::views::transform([this](Room &room) -> RoomWithLastMessage
+        return rooms | std::views::transform([this, userId](Room &room) -> RoomWithLastMessage
         {
             // Читаем id ДО перемещения room — иначе обращение к moved-from объекту.
             const protocol::RoomId roomId = room.id;
@@ -255,6 +276,12 @@ public: // Actions with responses
             RoomWithLastMessage res;
             res.room = std::move(room);
             res.participantsCount = roomMembersRepo_.countMembers(roomId);
+
+            // Роль запрашивающего в этой комнате. findForUser уже отфильтровал
+            // по членству, так что get обычно непустой; дефолт — Member.
+            auto member = roomMembersRepo_.get(roomId, userId);
+            res.role = member ? member->role : protocol::rooms::MemberRole::Member;
+
             auto msg = messageRepo_.findLastMessageInRoom(roomId);
             if (msg)
                 res.msg = std::move(msg.value());
