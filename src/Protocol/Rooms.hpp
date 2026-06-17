@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "Protocol/Types.hpp"
 #include "Types.hpp"
 #include "Users.hpp"
 #include "Messages.hpp"
