@@ -79,6 +79,8 @@ private:
             res.lastMessage.id = std::move(rwlm.msg.id);
             res.lastMessage.text = std::move(rwlm.msg.text);
 
+            res.participantsCount = rwlm.participantsCount;
+
             return res;
         }) | std::ranges::to<std::vector<protocol::rooms::RoomInformation>>();
         if (resp.hasMore)
