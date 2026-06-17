@@ -11,8 +11,14 @@
 class ApiController
 {
 public:
-    ApiController(crow::SimpleApp &app, std::time_t accessTtl, std::time_t refreshTtl)
-        : app_(app), accessTtl_(accessTtl), refreshTtl_(refreshTtl)
+    ApiController(crow::SimpleApp &app,
+                  std::time_t accessTtl,
+                  std::time_t refreshTtl,
+                  const std::int64_t maxMessageSize)
+        : app_(app),
+          accessTtl_(accessTtl),
+          refreshTtl_(refreshTtl),
+          maxMessageSize_(maxMessageSize)
     {
     }
 
@@ -26,6 +32,7 @@ private:
     crow::SimpleApp &app_;
     const std::time_t accessTtl_;
     const std::time_t refreshTtl_;
+    const std::int64_t maxMessageSize_;
 
 private:
     crow::response handleHealth() const
@@ -41,7 +48,8 @@ private:
             .version = "0.1.0",
             .wsEndpoint = "/ws",
             .accessTtl = accessTtl_,
-            .refreshTtl = refreshTtl_};
+            .refreshTtl = refreshTtl_,
+            .maxMessageSize = maxMessageSize_};
         return HttpHelpers::jsonResponse(200, dto);
     }
 };

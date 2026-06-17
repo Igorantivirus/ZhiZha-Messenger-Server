@@ -7,12 +7,12 @@
 
 namespace protocol::api
 {
-    enum class ServerStatus
-    {
-        Ok,
-        Failed,
-        Serviced 
-    };
+enum class ServerStatus
+{
+    Ok,
+    Failed,
+    Serviced
+};
 }
 
 namespace protocol::api
@@ -36,9 +36,9 @@ struct InfoResponse
     std::string serverName;
     std::string version;
     std::string wsEndpoint;
-    std::time_t accessTtl;  // секунды жизни access
-    std::time_t refreshTtl; // секунды жизни refresh
+    std::time_t accessTtl;       // секунды жизни access
+    std::time_t refreshTtl;      // секунды жизни refresh
+    std::int64_t maxMessageSize; // Максимальная длина сообщения
 };
-
 
 } // namespace protocol::api

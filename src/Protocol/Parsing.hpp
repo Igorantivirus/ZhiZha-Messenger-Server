@@ -84,7 +84,7 @@ namespace protocol::api
 {
 NLOHMANN_JSON_MAGIC_ENUM(ServerStatus)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ErrorResponse, code, message)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(InfoResponse, serverName, version, wsEndpoint, accessTtl, refreshTtl)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(InfoResponse, serverName, version, wsEndpoint, accessTtl, refreshTtl, maxMessageSize)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(HealthResponse, status)
 } // namespace protocol::api
 

@@ -51,7 +51,7 @@ public:
           sessionManager_(),
           authService_(passwordHasher_, userRepository_, tokenService_, validator_),
           chatService_(roomRepository_, messageRepository_, roomMembersRepository_, sessionManager_, config.validation.maxMessageSize),
-          httpServer_(app_, authService_, chatService_, userRepository_, roomRepository_, config_.accessTtl, config_.refreshTtl),
+          httpServer_(app_, authService_, chatService_, userRepository_, roomRepository_, config_.accessTtl, config_.refreshTtl, config.validation.maxMessageSize),
           // chat пока nullptr: ChatService — рабочий черновик, подключим позже.
           wsServer_(app_, authService_, sessionManager_, chatService_)
     {

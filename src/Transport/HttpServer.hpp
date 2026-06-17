@@ -24,8 +24,9 @@ public:
                IUserRepository &userRepo,
                IRoomRepository &roomsRepo,
                std::time_t accessTtl,
-               std::time_t refreshTtl)
-        : apiController_(app, accessTtl, refreshTtl),
+               std::time_t refreshTtl,
+               std::int64_t maxMessageSize)
+        : apiController_(app, accessTtl, refreshTtl, maxMessageSize),
           authController_(app, auth),
           usersController_(app, auth, chat, userRepo),
           roomsController_(app, auth, chat, roomsRepo),
