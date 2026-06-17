@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -61,6 +62,7 @@ struct RoomInformation
 {
     Room roomInfo;
     messages::Message lastMessage;
+    std::uint32_t participantsCount; // число участников комнаты
 };
 
 // Информация об участнике. Несёт display-инфо (username+displayname), чтобы
