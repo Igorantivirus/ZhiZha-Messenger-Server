@@ -27,6 +27,9 @@ public:
     // Число участников комнаты (дешевле membersOf().size() — не тянет строки)
     virtual std::uint32_t countMembers(const protocol::RoomId roomId) const = 0;
 
+    // id всех комнат, в которых состоит пользователь (для рассылки по общим комнатам)
+    virtual std::vector<protocol::RoomId> roomIdsOfUser(const protocol::UserId userId) const = 0;
+
     // Проверка членства (для авторизации действий — может ли он писать сюда?)
     virtual bool isMember(const protocol::RoomId roomId, protocol::UserId userId) const = 0;
 
