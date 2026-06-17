@@ -115,13 +115,13 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ChangeRoomRequest, newRoomInfo)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomsLoopByExampleResponse, users)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomInfoResponse, room)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomsMembersInfoResponse, members)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomInformation, roomInfo, lastMessage)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RoomInformation, roomInfo, lastMessage, participantsCount)
 } // namespace protocol::rooms
 
 namespace protocol::messages
 {
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Message, id, fromUserId, text, createdAt)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MessagesResponse, roomId, messages, hasMore)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MessagesResponse, roomId, messages, hasMore, senders)
 } // namespace protocol::messages
 
 namespace protocol::users
