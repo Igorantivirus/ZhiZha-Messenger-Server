@@ -3,7 +3,7 @@
 #include <optional>
 
 #include <Auth/Types/AuthSuccess.hpp>
-#include <Protocol/Types.hpp>
+#include <ProtocolV1/Common/Types.hpp>
 
 class ITokenService
 {

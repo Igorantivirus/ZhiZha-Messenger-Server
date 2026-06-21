@@ -6,8 +6,7 @@
 #include <vector>
 
 #include <Auth/Types/User.hpp>
-#include <Protocol/Types.hpp>
-#include <Protocol/Users.hpp>
+#include <ProtocolV1/Common/Types.hpp>
 
 class IUserRepository
 {
@@ -17,12 +16,12 @@ public:
     virtual std::optional<User> findUserById(const protocol::UserId id) const = 0;
     virtual std::vector<User> findUsersByQuery(std::string query, unsigned limit) const = 0;
 
-    virtual protocol::UserId create(const std::string &username, const std::string &displayeName, const std::string &passwordHash, const std::time_t birthDate, const protocol::users::Country country) = 0;
+    virtual protocol::UserId create(const std::string &username, const std::string &displayeName, const std::string &passwordHash, const std::time_t birthDate, const protocol::Country country) = 0;
 
     virtual bool updateUsername(const protocol::UserId id, const std::string newUsername) = 0;
     virtual bool updatePasswordHash(const protocol::UserId id, const std::string newPasswordHash) = 0;
 
     // Обновляет редактируемую пользователем информацию (username, displayName,
     // дата рождения, страна). registerTime и passwordHash не трогает.
-    virtual bool updateEditableInfo(const protocol::UserId id, const std::string &newUsername, const std::string &newDisplayName, const std::time_t birthDate, const protocol::users::Country country) = 0;
+    virtual bool updateEditableInfo(const protocol::UserId id, const std::string &newUsername, const std::string &newDisplayName, const std::time_t birthDate, const protocol::Country country) = 0;
 };

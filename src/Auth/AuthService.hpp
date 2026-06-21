@@ -3,12 +3,13 @@
 #include <expected>
 #include <optional>
 
-#include <Protocol/Types.hpp>
+#include <ProtocolV1/Common/Types.hpp>
 
 #include "Interfaces/ICredentialsValidator.hpp"
 #include "Interfaces/IPasswordHasher.hpp"
 #include "Interfaces/ITokenService.hpp"
 #include "Interfaces/IUserRepository.hpp"
+#include "ProtocolV1/Data/Users.hpp"
 #include "Types/AuthError.hpp"
 #include "Types/AuthSuccess.hpp"
 
@@ -24,7 +25,7 @@ public:
     }
 
     // Регистрация
-    std::expected<AuthSuccess, AuthError> registerUser(const std::string &username, const std::string &password, const std::string &displayName, const std::time_t birthDate, const protocol::users::Country country)
+    std::expected<AuthSuccess, AuthError> registerUser(const std::string &username, const std::string &password, const std::string &displayName, const std::time_t birthDate, const protocol::Country country)
     {
         if (!validator_.isValidUsername(username))
             return std::unexpected(AuthError::UsernameValidation);
@@ -42,7 +43,7 @@ public:
 
     // Редактирование своего профиля (username, displayName, дата рождения, страна).
     // username, если меняется, проверяется на валидность и уникальность.
-    std::optional<AuthError> updateUser(const protocol::UserId id, const protocol::users::UserEditableInfo &newInfo)
+    std::optional<AuthError> updateUser(const protocol::UserId id, const protocol::data::UserEditableInfo &newInfo)
     {
         auto current = users_.findUserById(id);
         if (!current)

@@ -2,7 +2,7 @@
 
 #include <ctime>
 
-#include <Protocol/Types.hpp>
+#include <ProtocolV1/Common/Types.hpp>
 
 #include <Auth/Types/TokenPair.hpp>
 

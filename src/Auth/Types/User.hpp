@@ -3,8 +3,7 @@
 #include <ctime>
 #include <string>
 
-#include <Protocol/Types.hpp>
-#include <Protocol/Users.hpp>
+#include <ProtocolV1/Common/Types.hpp>
 
 struct User
 {
@@ -14,5 +13,5 @@ struct User
     std::int64_t registerTime;
     std::string displayeName;
     std::time_t birthDate;
-    protocol::users::Country country;
+    protocol::Country country;
 };
