@@ -1,15 +1,14 @@
 #pragma once
 
-#include <crow/crow.h>
-
-#include <Utils/BindMethod.hpp>
-
-#include <Protocol/Api.hpp>
-
+#include <ProtocolV1/Operations/Api.hpp>
 #include <Transport/HttpHelpers.hpp>
 
 class ApiController
 {
+private:
+    using Health = protocol::api::ServerHealthOperation;
+    using Info = protocol::api::ServerInfoOperation;
+
 public:
     ApiController(crow::SimpleApp &app,
                   std::time_t accessTtl,
@@ -24,8 +23,8 @@ public:
 
     void registerRoutes()
     {
-        CROW_ROUTE(app_, "/api/v1/health").methods("GET"_method)(utils::bindMethod(this, &ApiController::handleHealth));
-        CROW_ROUTE(app_, "/api/v1/info").methods("GET"_method)(utils::bindMethod(this, &ApiController::handleInfo));
+        HttpHelpers::bindWithoutAuth<Health>(app_, this, &ApiController::handleHalth);
+        HttpHelpers::bindWithoutAuth<Info>(app_, this, &ApiController::handleInfo);
     }
 
 private:
@@ -35,21 +34,19 @@ private:
     const std::int64_t maxMessageSize_;
 
 private:
-    crow::response handleHealth() const
+    HttpHelpers::HttpResponse<Health, ChatError> handleHalth(HttpHelpers::HttpRequest<Health> req)
     {
-        protocol::api::HealthResponse dto{.status = protocol::api::ServerStatus::Ok};
-        return HttpHelpers::jsonResponse(200, dto);
+        return Health::Response{.status = protocol::data::ServerStatus::Ok};
     }
-
-    crow::response handleInfo() const
+    HttpHelpers::HttpResponse<Info, ChatError> handleInfo(HttpHelpers::HttpRequest<Info> req)
     {
-        protocol::api::InfoResponse dto{
+        Info::Response dto{
             .serverName = "ZhiZha",
             .version = "0.1.0",
             .wsEndpoint = "/ws",
             .accessTtl = accessTtl_,
             .refreshTtl = refreshTtl_,
             .maxMessageSize = maxMessageSize_};
-        return HttpHelpers::jsonResponse(200, dto);
+        return dto;
     }
 };
