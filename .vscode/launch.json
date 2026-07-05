@@ -15,7 +15,7 @@
       ],
       "console": "integratedTerminal",
       "stopAtEntry": false,
-      "args": ["frined-config.json"]
+      "args": ["../assets/frined-config.json"]
     }
   ]
 }

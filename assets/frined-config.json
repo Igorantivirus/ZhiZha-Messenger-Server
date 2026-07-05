@@ -1,0 +1,41 @@
+{
+    "port": 8080,
+    "accessTtl": 900,
+    "refreshTtl": 7200,
+    "databaseFile": "zhizha.db",
+    "validation": {
+        "maxMessageSize": 1000,
+        "username": {
+            "minLength": 1,
+            "maxLength": 32,
+            "allowLetters": true,
+            "allowDigits": true,
+            "mustStartWithLetter": true,
+            "allowedSpecialSymbols": "-_"
+        },
+        "password": {
+            "minLength": 1,
+            "maxLength": 64,
+            "allowLetters": true,
+            "allowDigits": true,
+            "mustStartWithLetter": false,
+            "allowedSpecialSymbols": "-_()@#$%^&*!?=+/"
+        },
+        "displayName": {
+            "minLength": 1,
+            "maxLength": 48,
+            "allowLetters": true,
+            "allowDigits": true,
+            "mustStartWithLetter": false,
+            "allowedSpecialSymbols": "-_ ."
+        },
+        "roomName": {
+            "minLength": 1,
+            "maxLength": 64,
+            "allowLetters": true,
+            "allowDigits": true,
+            "mustStartWithLetter": false,
+            "allowedSpecialSymbols": "-_ ."
+        }
+    }
+}

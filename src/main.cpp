@@ -1,10 +1,10 @@
 #include <cstdlib>
 #include <exception>
 #include <iostream>
-#include <string>
 
+#include <App/Configs/Parsing.hpp>
 #include <App/ServerApplication.hpp>
-#include <App/ServerConfig.hpp>
+#include <Utils/ConfigReader.hpp>
 
 int main(int argc, char **argv)
 {
@@ -12,13 +12,12 @@ int main(int argc, char **argv)
     std::system("chcp 65001 > nul");
 #endif
 
-    // Первый аргумент — путь до конфиг-файла. По умолчанию config.json рядом.
     const std::string configPath = (argc > 1) ? argv[1] : "config.json";
 
     try
     {
-        ServerConfig config = ServerConfig::loadFromFile(configPath);
-        ServerApplication app(std::move(config));
+        app::ServerConfig config = utils::ConfigReader::loadFromFile<app::ServerConfig>(configPath);
+        app::ServerApplication app(std::move(config));
         app.run();
     }
     catch (const std::exception &e)

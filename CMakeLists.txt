@@ -8,9 +8,34 @@ set(EXECUTABLE_NAME ${PROJECT_NAME})
 
 set(CPP_FILES
     src/main.cpp
+    src/App/ServerApplication.cpp
+    src/AuthService/AccessTokenStore.cpp
+    src/AuthService/AuthService.cpp
+    src/AuthService/RefreshTokenStore.cpp
+    src/AuthService/TokenService.cpp
+    src/AuthService/UserQueryService.cpp
+    src/AuthService/UserRepository.cpp
+    src/ChatService/ChatQueryService.cpp
+    src/ChatService/ChatService.cpp
+    src/ChatService/MembersRepository.cpp
+    src/ChatService/MessageRepository.cpp
+    src/ChatService/RoomPermissions.cpp
+    src/ChatService/RoomRepository.cpp
+    src/SessionService/SessionService.cpp
+    src/Transport/ApiController.cpp
+    src/Transport/AuthController.cpp
+    src/Transport/Helpers.cpp
+    src/Transport/HttpServer.cpp
+    src/Transport/MessagesController.cpp
+    src/Transport/RoomsController.cpp
+    src/Transport/UsersController.cpp
+    src/Transport/WsServer.cpp
+    src/Utils/PasswordHasher.cpp
+    src/Utils/StringRule.cpp
+    src/Utils/Validator.cpp
 )
 
-set(INCLUDE_PATHS extern src)
+set(INCLUDE_PATHS extern src include)
 
 # ============== ПОДКЛЮЧЕНИЕ БИБЛИОТЕК ==============
 
@@ -46,4 +71,8 @@ target_link_libraries(${EXECUTABLE_NAME} PUBLIC
 
 if(MSVC)
     target_compile_options(${EXECUTABLE_NAME} PRIVATE /bigobj)
+    target_compile_definitions(${EXECUTABLE_NAME} PRIVATE
+        _WIN32_WINNT=0x0A00 # Windows 10
+        WIN32_LEAN_AND_MEAN
+    )
 endif()

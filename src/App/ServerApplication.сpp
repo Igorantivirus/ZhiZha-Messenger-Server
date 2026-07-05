@@ -1,0 +1,16 @@
+#include <App/ServerApplication.hpp>
+
+namespace app
+{
+
+ServerApplication::ServerApplication(ServerConfig config)
+    : config_(std::move(config))
+{
+}
+
+void ServerApplication::run()
+{
+    
+}
+
+} // namespace app
