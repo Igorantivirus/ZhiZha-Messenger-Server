@@ -18,6 +18,9 @@ bool StringRule::check(const std::string &value) const
         return false;
     if (value.empty())
         return minLength == 0;
+    // Длина уже проверена — символьные правила пропускаем.
+    if (onlyLengthCheck)
+        return true;
     if (mustStartWithLetter && !isLetter(value.front()))
         return false;
     for (const char c : value)
