@@ -42,7 +42,7 @@ constexpr std::string_view SELECT_BY_USERNAME =
 
 constexpr std::string_view SELECT_BY_QUERY =
     "SELECT id, passwordHash, username, displayName, country, registerTime, birthDate "
-    "FROM users WHERE username LIKE ? LIMIT ?";
+    "FROM users WHERE displayName LIKE ? LIMIT ?";
 
 constexpr std::string_view SELECT_BY_IDS_PREFIX =
     "SELECT id, passwordHash, username, displayName, country, registerTime, birthDate "
