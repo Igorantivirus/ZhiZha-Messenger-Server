@@ -14,7 +14,7 @@ void AuthController::registerRoutes()
 {
     Helpers::bindWithoutAuth<Register>(app_, this, &AuthController::handleRegister);
     Helpers::bindWithoutAuth<Login>(app_, this, &AuthController::handleLogin);
-    Helpers::bindWithAuth<Refresh>(app_, this, auth_, &AuthController::handleRefresh);
+    Helpers::bindWithoutAuth<Refresh>(app_, this, &AuthController::handleRefresh);
     Helpers::bindWithAuth<Logout>(app_, this, auth_, &AuthController::handleLogout);
     Helpers::bindWithAuth<LogoutAll>(app_, this, auth_, &AuthController::handleLogoutAll);
 }
