@@ -24,10 +24,7 @@
         "displayName": {
             "minLength": 1,
             "maxLength": 48,
-            "allowLetters": true,
-            "allowDigits": true,
-            "mustStartWithLetter": false,
-            "allowedSpecialSymbols": "-_ ."
+            "onlyLengthCheck": true
         },
         "roomName": {
             "minLength": 1,
