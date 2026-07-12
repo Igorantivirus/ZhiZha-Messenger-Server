@@ -1,10 +1,11 @@
+#include "Protocol/Data/Users.hpp"
 #include "Transport/Helpers.hpp"
 #include <Transport/Controllers/UsersController.hpp>
 
 namespace transport
 {
 
-UsersController::UsersController(crow::SimpleApp &app, auth::AuthService &auth, auth::UserQueryService& userQuery)
+UsersController::UsersController(crow::SimpleApp &app, auth::AuthService &auth, auth::UserQueryService &userQuery)
     : app_(app), auth_(auth), userQuery_(userQuery)
 {
 }
@@ -17,7 +18,13 @@ void UsersController::registerRoutes()
 }
 Helpers::HttpResponse<UsersController::LoopUsers, auth::AuthError> UsersController::handleLoopUsers(Helpers::HttpRequest<LoopUsers> req)
 {
-    return {};
+    auto res = userQuery_.searchUsers(req.query.query, req.query.limit);
+
+    LoopUsers::Response resp;
+    for (auto &&user : res)
+        resp.users[user.id] = protocol::data::UserDisplayInfo{.displayName = user.displayName};
+
+    return resp;
 }
 Helpers::HttpResponse<UsersController::ChangeMe, auth::AuthError> UsersController::handleChangeMe(Helpers::HttpRequest<ChangeMe> req)
 {
