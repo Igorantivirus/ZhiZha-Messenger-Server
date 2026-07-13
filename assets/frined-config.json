@@ -7,7 +7,7 @@
         "certFile": "",
         "keyFile": "",
         "scheme": "zhizha",
-        "address": ""
+        "address": "127.0.0.1"
     },
     "validation": {
         "maxMessageSize": 1000,
