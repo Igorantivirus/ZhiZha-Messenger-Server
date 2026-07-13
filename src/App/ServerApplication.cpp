@@ -1,5 +1,11 @@
 #include <App/ServerApplication.hpp>
 
+#include <filesystem>
+#include <iostream>
+
+#include <Tls/TlsProvider.hpp>
+#include <Utils/LocalAddress.hpp>
+
 namespace app
 {
 
@@ -62,7 +68,36 @@ void ServerApplication::run()
     httpServer_.registerRoutes();
     wsServer_.registerRoutes();
 
-    app_.port(config_.port).multithreaded().run();
+    // TLS обязателен: либо пользовательская пара из конфига, либо
+    // самоподписанная, сгенерированная (и переиспользуемая) в рабочей
+    // директории — там же, где лежит БД.
+    const std::filesystem::path workDir =
+        std::filesystem::path(config_.databaseFile).parent_path();
+    const tls::TlsMaterial tlsMaterial = tls::TlsProvider::prepare(config_.tls, workDir);
+
+    const std::string address = config_.tls.address.empty()
+                                    ? utils::detectLocalAddress()
+                                    : config_.tls.address;
+
+    // Ссылка-приглашение. Fragment (#...) не передаётся по сети — клиент
+    // использует его локально как pinned fingerprint сертификата.
+    if (tlsMaterial.fingerprintChanged)
+    {
+        std::cout << "!!!==================================================!!!\n"
+                     "!!!  ССЫЛКА ИЗМЕНИЛАСЬ! Сертификат сервера сменился.  !!!\n"
+                     "!!!  Старые ссылки-приглашения больше не действуют.   !!!\n"
+                     "!!!==================================================!!!\n";
+    }
+    std::cout << "Server link:\n"
+              << config_.tls.scheme << "://" << address << ':' << config_.port
+              << "/#" << tlsMaterial.fingerprint << '\n'
+              << (tlsMaterial.selfSigned ? "(self-signed certificate)" : "(user certificate)")
+              << std::endl;
+
+    app_.port(config_.port)
+        .ssl_file(tlsMaterial.certFile, tlsMaterial.keyFile)
+        .multithreaded()
+        .run();
 }
 
 } // namespace app
