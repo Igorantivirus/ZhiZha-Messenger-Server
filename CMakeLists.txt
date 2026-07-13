@@ -40,6 +40,7 @@ set(INCLUDE_PATHS extern src include)
 # ============== ПОДКЛЮЧЕНИЕ БИБЛИОТЕК ==============
 
 include(cmake/FindBoost.cmake)
+include(cmake/FindOpenSSL.cmake)
 
 find_package(SQLiteCpp CONFIG REQUIRED)
 

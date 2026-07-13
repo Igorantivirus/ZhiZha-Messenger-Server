@@ -6,7 +6,8 @@
       "inherits": "msvc-x64-win-mt",
       "cacheVariables": {
         "CMAKE_PREFIX_PATH": "${env.LIBS_ROOT}/install/SQLiteCpp-3.3.3/msvc-x64-win-mt",
-        "Boost_ROOT": "${env.LIBS_ROOT}/src/boost_1_90_0"
+        "Boost_ROOT": "${env.LIBS_ROOT}/src/boost_1_90_0",
+        "OPENSSL_ROOT_DIR": "$env{LIBS_ROOT}/install/openssl-4.0.1/msvc-x64-win-mt"
       }
     },
     {
@@ -19,7 +20,8 @@
       },
       "cacheVariables": {
         "CMAKE_PREFIX_PATH": "${env.LIBS_ROOT}/_install/SQLiteCpp-3.3.3/msvc-x64-win-mt",
-        "Boost_ROOT": "${env.LIBS_ROOT}/boost_1_90_0"
+        "Boost_ROOT": "${env.LIBS_ROOT}/boost_1_90_0",
+        "OPENSSL_ROOT_DIR": "$env{LIBS_ROOT}/_install/openssl-4.0.1/msvc-x64-win-mt"
       }
     }
   ],
