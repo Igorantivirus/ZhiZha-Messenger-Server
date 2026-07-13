@@ -5,9 +5,8 @@
       "name": "Win-BuildTools",
       "inherits": "msvc-x64-win-mt",
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "${env.LIBS_ROOT}/install/SQLiteCpp-3.3.3/msvc-x64-win-mt",
-        "Boost_ROOT": "${env.LIBS_ROOT}/src/boost_1_90_0",
-        "OPENSSL_ROOT_DIR": "$env{LIBS_ROOT}/install/openssl-4.0.1/msvc-x64-win-mt"
+        "CMAKE_PREFIX_PATH": "${env.LIBS_ROOT}/install/SQLiteCpp-3.3.3/msvc-x64-win-mt;$env{LIBS_ROOT}/install/openssl-4.0.1/msvc-x64-win-mt",
+        "Boost_ROOT": "${env.LIBS_ROOT}/src/boost_1_90_0"
       }
     },
     {

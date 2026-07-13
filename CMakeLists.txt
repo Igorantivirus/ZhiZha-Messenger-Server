@@ -22,6 +22,7 @@ set(CPP_FILES
     src/ChatService/RoomPermissions.cpp
     src/ChatService/RoomRepository.cpp
     src/SessionService/SessionService.cpp
+    src/Tls/TlsProvider.cpp
     src/Transport/ApiController.cpp
     src/Transport/AuthController.cpp
     src/Transport/Helpers.cpp
@@ -30,6 +31,7 @@ set(CPP_FILES
     src/Transport/RoomsController.cpp
     src/Transport/UsersController.cpp
     src/Transport/WsServer.cpp
+    src/Utils/LocalAddress.cpp
     src/Utils/PasswordHasher.cpp
     src/Utils/StringRule.cpp
     src/Utils/Validator.cpp
@@ -58,6 +60,7 @@ set_target_properties(${EXECUTABLE_NAME} PROPERTIES
 
 target_compile_definitions(${EXECUTABLE_NAME} PUBLIC
     CROW_USE_BOOST=1
+    CROW_ENABLE_SSL=1
     ZHI_ZHA_SERVER=1
     PROTOCOL_USE_JSON_PARSING=1
 )
@@ -68,6 +71,8 @@ target_link_libraries(${EXECUTABLE_NAME} PUBLIC
     Boost::headers
     Threads::Threads
     SQLiteCpp
+    OpenSSL::SSL
+    OpenSSL::Crypto
 )
 
 if(MSVC)
