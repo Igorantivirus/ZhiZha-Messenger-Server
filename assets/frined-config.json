@@ -3,6 +3,12 @@
     "accessTtl": 900,
     "refreshTtl": 7200,
     "databaseFile": "zhizha.db",
+    "tls": {
+        "certFile": "",
+        "keyFile": "",
+        "scheme": "zhizha",
+        "address": ""
+    },
     "validation": {
         "maxMessageSize": 1000,
         "username": {
